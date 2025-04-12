@@ -1,0 +1,49 @@
+package models
+
+import (
+	"time"
+
+{{- if .HasSanitize }}
+	"github.com/microcosm-cc/bluemonday"
+{{- end }}
+)
+
+type {{.Domain}} struct {
+	ID string `json:"id"`
+	{{.Fields}}
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
+}
+
+func (m *{{.Domain}}) TableName() string {
+	return "{{.DomainLower}}"
+}
+
+func (m *{{.Domain}}) Columns() []string {
+	return []string{"id", {{.Columns}}, "created_at", "updated_at", "deleted_at"}
+}
+
+func (m *{{.Domain}}) Values() []interface{} {
+	return []interface{}{m.ID, {{.Values}}, m.CreatedAt, m.UpdatedAt, m.DeletedAt}
+}
+
+func (m *{{.Domain}}) PrimaryKey() string {
+	return "id"
+}
+
+func (m *{{.Domain}}) PrimaryKeyValue() interface{} {
+	return m.ID
+}
+
+func (m *{{.Domain}}) SetCreatedAt(t time.Time) {
+	m.CreatedAt = &t
+}
+
+func (m *{{.Domain}}) SetUpdatedAt(t time.Time) {
+	m.UpdatedAt = &t
+}
+
+func (m *{{.Domain}}) Sanitize() {
+	{{.Sanitize}}
+}

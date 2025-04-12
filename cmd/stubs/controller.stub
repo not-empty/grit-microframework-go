@@ -1,0 +1,65 @@
+package controller
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/not-empty/grit/app/helper"
+)
+
+type {{.Route}}Request struct {
+	Message string `json:"message"`
+}
+
+type {{.Route}}Controller struct{}
+
+func New{{.Route}}Controller() *{{.Route}}Controller {
+	return &{{.Route}}Controller{}
+}
+
+func (ec *{{.Route}}Controller) {{.Route}}Post(w http.ResponseWriter, r *http.Request) {
+	if err := func() error {
+		if r.Method != http.MethodPost {
+			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return nil
+		}
+
+		var body {{.Route}}Request
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			helper.JSONError(w, http.StatusBadRequest, "Invalid JSON")
+			return nil
+		}
+
+		if body.Message == "" {
+			helper.JSONError(w, http.StatusBadRequest, "Missing 'message' field")
+			return nil
+		}
+
+		response := map[string]string{"echo": body.Message}
+		helper.JSONResponse(w, http.StatusOK, response)
+		return nil
+	}(); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, err)
+	}
+}
+
+func (ec *{{.Route}}Controller) {{.Route}}Get(w http.ResponseWriter, r *http.Request) {
+	if err := func() error {
+		if r.Method != http.MethodGet {
+			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return nil
+		}
+
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			helper.JSONError(w, http.StatusBadRequest, "Missing 'q' parameter")
+			return nil
+		}
+
+		response := map[string]string{"echo": query}
+		helper.JSONResponse(w, http.StatusOK, response)
+		return nil
+	}(); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, err)
+	}
+}

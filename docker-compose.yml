@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  grit:
+    container_name: grit
+    build:
+      context: .
+      dockerfile: ops/Dockerfile-dev
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    ulimits:
+      nofile:
+        soft: "65536"
+        hard: "65536"
+    depends_on:
+      - grit-mysql
+
+  grit-mysql:
+    container_name: grit-mysql
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: grit
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - grit-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0
+
+volumes:
+  grit-data:
+

@@ -1,0 +1,29 @@
+package domains
+
+import (
+	"database/sql"
+
+	"github.com/not-empty/grit/app/repository"
+	"github.com/not-empty/grit/app/repository/models"
+	"github.com/not-empty/grit/app/router/routes"
+	"github.com/not-empty/grit/app/router/registry"
+)
+
+func init() {
+	registry.RegisterRouteInitializer(func(db *sql.DB) {
+		repo := &repository.Repository[*models.{{.Domain}}]{
+			DB: db,
+			New: func() *models.{{.Domain}} {
+				return new(models.{{.Domain}})
+			},
+		}
+		baseRoutes := &route.BaseRoutes[*models.{{.Domain}}]{
+			Repo:   repo,
+			Prefix: "/{{.DomainLower}}",
+			SetPK: func(m *models.{{.Domain}}, id string) {
+				m.ID = id
+			},
+		}
+		baseRoutes.RegisterRoutes()
+	})
+}

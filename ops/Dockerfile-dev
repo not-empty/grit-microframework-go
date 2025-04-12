@@ -1,0 +1,9 @@
+FROM golang:1.24-alpine
+WORKDIR /app
+
+RUN apk add --no-cache build-base ca-certificates git curl
+
+EXPOSE 8001
+
+# CMD ["sh", "-c", "go mod tidy && go run main.go -debug=true"]
+CMD ["sh", "-c", "tail -f /dev/null"]
