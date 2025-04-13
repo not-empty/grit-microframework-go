@@ -8,6 +8,8 @@
 vendor/
 /config/tokens.json
 /cmd/sql/*.sql
+/tests/coverage/*
+!/tests/coverage/.gitkeep
 grit
 
 /build/
