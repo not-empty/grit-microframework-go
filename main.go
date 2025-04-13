@@ -24,7 +24,8 @@ func main() {
 		port = "8001"
 	}
 
-	db := database.Init()
+	dbConfig := database.LoadConfigFromEnv()
+	db := database.Init(dbConfig)
 	router.RegisterRoutes(db)
 
 	log.Printf("Server starting on :%s", port)

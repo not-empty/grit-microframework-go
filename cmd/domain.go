@@ -20,6 +20,7 @@ type DomainData struct {
 	Columns     string
 	Values      string
 	Sanitize    string
+	Schema      string
 	HasSanitize bool
 }
 
@@ -46,9 +47,10 @@ func extractTableName(ddl string) string {
 	return strings.Trim(rest[:end], "`\"")
 }
 
-func parseExtraFields(ddl string) (fields, columns, values, sanitize string, hasSanitize bool) {
+func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema string, hasSanitize bool) {
 	lines := strings.Split(ddl, "\n")
 	var fieldLines, colNames, valNames, sanitizeLines []string
+	schemaMap := make([]string, 0)
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -90,6 +92,7 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize string, has
 		fieldLines = append(fieldLines, fmt.Sprintf("%s %s `json:\"%s\"`", fieldName, goType, colName))
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		valNames = append(valNames, fmt.Sprintf("m.%s", fieldName))
+		schemaMap = append(schemaMap, fmt.Sprintf("\"%s\": \"%s\"", colName, goType))
 
 		if strings.Contains(line, "-- sanitize-html") {
 			sanitizeLines = append(sanitizeLines, fmt.Sprintf("m.%s = policy.Sanitize(m.%s)", fieldName, fieldName))
@@ -100,6 +103,7 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize string, has
 	fields = strings.Join(fieldLines, "\n\t")
 	columns = strings.Join(colNames, ", ")
 	values = strings.Join(valNames, ", ")
+	schema = strings.Join(schemaMap, ",\n\t\t")
 
 	if hasSanitize {
 		sanitize = "policy := bluemonday.UGCPolicy()\n\t" + strings.Join(sanitizeLines, "\n\t")
@@ -130,7 +134,7 @@ func main() {
 		log.Fatalf("Could not extract table name from DDL")
 	}
 
-	extraField, extraColumn, extraValue, sanitize, hasSanitize := parseExtraFields(ddlContent)
+	extraField, extraColumn, extraValue, sanitize, schema, hasSanitize := parseExtraFields(ddlContent)
 
 	data := DomainData{
 		Domain:      domainCap,
@@ -140,6 +144,7 @@ func main() {
 		Columns:     extraColumn,
 		Values:      extraValue,
 		Sanitize:    sanitize,
+		Schema:      schema,
 		HasSanitize: hasSanitize,
 	}
 

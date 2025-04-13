@@ -59,9 +59,8 @@ func softDeleteModel(db *sql.DB, table, pk string, pkVal interface{}) error {
 	return err
 }
 
-func getModel[T BaseModel](db *sql.DB, id interface{}, m T, fields []string, deleted bool) error {
-	allCols := m.Columns()
-	selected := helper.FilterFields(fields, allCols)
+func getModel(db *sql.DB, id interface{}, schema map[string]string, table string, pk string, fields []string, deleted bool) (map[string]any, error) {
+	selected := helper.FilterFields(fields, helper.MapKeys(schema))
 	condition := "deleted_at IS NULL"
 	if deleted {
 		condition = "deleted_at IS NOT NULL"
@@ -70,36 +69,35 @@ func getModel[T BaseModel](db *sql.DB, id interface{}, m T, fields []string, del
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s WHERE %s = ? AND %s LIMIT 1",
 		strings.Join(selected, ", "),
-		m.TableName(),
-		m.PrimaryKey(),
+		table,
+		pk,
 		condition,
 	)
 
 	rows, err := db.Query(query, id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
 	if rows.Next() {
-		return helper.GenericScanFrom(rows, m)
+		return helper.GenericScanToMap(rows, schema)
 	}
-	return sql.ErrNoRows
+	return nil, sql.ErrNoRows
 }
 
-func listModels[T BaseModel](
+func listModels(
 	db *sql.DB,
-	factory func() T,
+	schema map[string]string,
 	table string,
-	allCols []string,
 	fields []string,
 	limit, offset int,
 	orderBy, order string,
 	filters []helper.Filter,
 	deleted bool,
-) ([]T, error) {
-	selected := helper.FilterFields(fields, allCols)
-	orderBy = helper.ValidateOrderBy(orderBy, allCols)
+) ([]map[string]any, error) {
+	selected := helper.FilterFields(fields, helper.MapKeys(schema))
+	orderBy = helper.ValidateOrderBy(orderBy, helper.MapKeys(schema))
 	order = helper.ValidateOrder(order)
 
 	whereClause, args := helper.BuildWhereClause(filters)
@@ -134,34 +132,34 @@ func listModels[T BaseModel](
 	}
 	defer rows.Close()
 
-	var list []T
+	var list []map[string]any
 	for rows.Next() {
-		item := factory()
-		if err := helper.GenericScanFrom(rows, item); err != nil {
+		row, err := helper.GenericScanToMap(rows, schema)
+		if err != nil {
 			return nil, err
 		}
-		list = append(list, item)
+		list = append(list, row)
 	}
 
 	return list, nil
 }
 
-func bulkGetModels[T BaseModel](
+func bulkGetModels(
 	db *sql.DB,
-	factory func() T,
+	schema map[string]string,
 	table string,
-	allCols []string,
+	pk string,
 	fields []string,
 	ids []string,
 	limit, offset int,
 	orderBy, order string,
-) ([]T, error) {
+) ([]map[string]any, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
-	selected := helper.FilterFields(fields, allCols)
-	orderBy = helper.ValidateOrderBy(orderBy, allCols)
+	selected := helper.FilterFields(fields, helper.MapKeys(schema))
+	orderBy = helper.ValidateOrderBy(orderBy, helper.MapKeys(schema))
 	order = helper.ValidateOrder(order)
 
 	placeholders := make([]string, len(ids))
@@ -176,7 +174,7 @@ func bulkGetModels[T BaseModel](
 		"SELECT %s FROM %s WHERE %s IN (%s) AND deleted_at IS NULL ORDER BY %s %s LIMIT ? OFFSET ?",
 		strings.Join(selected, ", "),
 		table,
-		factory().PrimaryKey(),
+		pk,
 		strings.Join(placeholders, ", "),
 		orderBy,
 		order,
@@ -188,13 +186,13 @@ func bulkGetModels[T BaseModel](
 	}
 	defer rows.Close()
 
-	var list []T
+	var list []map[string]any
 	for rows.Next() {
-		item := factory()
-		if err := helper.GenericScanFrom(rows, item); err != nil {
+		row, err := helper.GenericScanToMap(rows, schema)
+		if err != nil {
 			return nil, err
 		}
-		list = append(list, item)
+		list = append(list, row)
 	}
 	return list, nil
 }

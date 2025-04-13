@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+var JwtMiddlewareFunc = JwtMiddleware
+
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		noAuthMode := os.Getenv("APP_NO_AUTH")
@@ -23,6 +25,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		JwtMiddleware(next).ServeHTTP(w, r)
+		JwtMiddlewareFunc(next).ServeHTTP(w, r)
 	})
 }

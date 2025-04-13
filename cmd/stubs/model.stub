@@ -16,6 +16,16 @@ type {{.Domain}} struct {
 	DeletedAt *time.Time `json:"deleted_at"`
 }
 
+func (m *{{.Domain}}) Schema() map[string]string {
+	return map[string]string{
+		"id": "string",
+		{{.Schema}},
+		"created_at": "*time.Time",
+		"updated_at": "*time.Time",
+		"deleted_at": "*time.Time",
+	}
+}
+
 func (m *{{.Domain}}) TableName() string {
 	return "{{.DomainLower}}"
 }

@@ -2,122 +2,84 @@ package helper
 
 import (
 	"database/sql"
-	"errors"
-	"reflect"
+	"fmt"
 	"strings"
-	"time"
 )
 
-var (
-	typeString    = reflect.TypeOf("")
-	typeInt       = reflect.TypeOf(int(0))
-	typeTimePtr   = reflect.TypeOf((*time.Time)(nil))
-	typeNullableT = reflect.TypeOf(sql.NullTime{})
-)
-
-func PrepareScanMap(columns []string, dest any) ([]interface{}, error) {
-	v := reflect.ValueOf(dest)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return nil, errors.New("destination must be a non-nil pointer")
-	}
-
-	elem := v.Elem()
-	if elem.Kind() != reflect.Struct {
-		return nil, errors.New("destination must be a pointer to struct")
-	}
-
-	typ := elem.Type()
-	valuePtrs := make([]interface{}, len(columns))
-	columnIndex := make(map[string]int)
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		name := strings.ToLower(field.Tag.Get("json"))
-		if name == "" {
-			name = strings.ToLower(field.Name)
-		}
-		columnIndex[name] = i
-	}
-
-	for i, col := range columns {
-		idx, ok := columnIndex[col]
-		if !ok {
-			var discard any
-			valuePtrs[i] = &discard
-			continue
-		}
-		field := elem.Field(idx)
-		switch field.Type() {
-		case typeString:
-			valuePtrs[i] = new(sql.NullString)
-		case typeInt:
-			valuePtrs[i] = new(sql.NullInt64)
-		case typeTimePtr:
-			valuePtrs[i] = new(sql.NullTime)
-		default:
-			var discard any
-			valuePtrs[i] = &discard
-		}
-	}
-
-	return valuePtrs, nil
-}
-
-func AssignScanValues(columns []string, dest any, values []interface{}) error {
-	v := reflect.ValueOf(dest)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return errors.New("destination must be a non-nil pointer")
-	}
-	elem := v.Elem()
-	if elem.Kind() != reflect.Struct {
-		return errors.New("destination must be a pointer to struct")
-	}
-	typ := elem.Type()
-	columnIndex := make(map[string]int)
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		name := strings.ToLower(field.Tag.Get("json"))
-		if name == "" {
-			name = strings.ToLower(field.Name)
-		}
-		columnIndex[name] = i
-	}
-	for i, col := range columns {
-		idx, ok := columnIndex[col]
-		if !ok {
-			continue
-		}
-		field := elem.Field(idx)
-		src := reflect.ValueOf(values[i]).Elem().Interface()
-		switch val := src.(type) {
-		case sql.NullString:
-			if val.Valid {
-				field.SetString(val.String)
-			}
-		case sql.NullInt64:
-			if val.Valid {
-				field.SetInt(val.Int64)
-			}
-		case sql.NullTime:
-			if val.Valid {
-				t := val.Time
-				field.Set(reflect.ValueOf(&t))
-			}
-		}
-	}
-	return nil
-}
-
-func GenericScanFrom[T any](scanner interface{ Columns() ([]string, error); Scan(...any) error }, target T) error {
+func GenericScanToMap(scanner interface {
+	Columns() ([]string, error)
+	Scan(...any) error
+}, schema map[string]string) (map[string]any, error) {
 	cols, err := scanner.Columns()
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
-	values, err := PrepareScanMap(cols, target)
-	if err != nil {
-		return err
+
+	scanMap := make(map[string]any)
+	scanArgs := make([]any, len(cols))
+
+	for i, col := range cols {
+		typ, ok := schema[col]
+		if !ok {
+			var discard any
+			scanArgs[i] = &discard
+			continue
+		}
+
+		switch strings.ToLower(typ) {
+		case "string":
+			ptr := new(sql.NullString)
+			scanMap[col] = ptr
+			scanArgs[i] = ptr
+		case "int":
+			ptr := new(sql.NullInt64)
+			scanMap[col] = ptr
+			scanArgs[i] = ptr
+		case "*time.time":
+			ptr := new(sql.NullTime)
+			scanMap[col] = ptr
+			scanArgs[i] = ptr
+		default:
+			var discard any
+			scanArgs[i] = &discard
+		}
 	}
-	if err := scanner.Scan(values...); err != nil {
-		return err
+
+	if err := scanner.Scan(scanArgs...); err != nil {
+		return nil, fmt.Errorf("scan failed: %w", err)
 	}
-	return AssignScanValues(cols, target, values)
+
+	result := make(map[string]any)
+	for key, ptr := range scanMap {
+		switch v := ptr.(type) {
+		case *sql.NullString:
+			if v.Valid {
+				result[key] = v.String
+			} else {
+				result[key] = ""
+			}
+		case *sql.NullInt64:
+			if v.Valid {
+				result[key] = int(v.Int64)
+			} else {
+				result[key] = 0
+			}
+		case *sql.NullTime:
+			if v.Valid {
+				result[key] = v.Time.Format("2006-01-02 15:04:05")
+			} else {
+				result[key] = nil
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func MapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

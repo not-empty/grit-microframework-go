@@ -54,13 +54,11 @@ func ResponseMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		// Set headers
 		w.Header().Set("X-Token", jwtInfo.Token)
 		w.Header().Set("X-Expires", jwtInfo.Expires)
 		w.Header().Set("X-Request-ID", requestID)
 		w.Header().Set("X-Profile", formatProfile(elapsed))
 
-		// Handle 204 manually
 		if rr.status == http.StatusNoContent {
 			w.WriteHeader(http.StatusNoContent)
 			return

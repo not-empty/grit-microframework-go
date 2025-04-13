@@ -30,6 +30,7 @@ type BaseModel interface {
 	Values() []interface{}
 	PrimaryKey() string
 	PrimaryKeyValue() interface{}
+	Schema() map[string]string
 }
 
 type Repository[T BaseModel] struct {
@@ -49,24 +50,27 @@ func (r *Repository[T]) Delete(m T) error {
 	return softDeleteModel(r.DB, m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue())
 }
 
-func (r *Repository[T]) Get(id interface{}, m T, fields []string) error {
-	return getModel(r.DB, id, m, fields, false)
-}
-
-func (r *Repository[T]) GetDeleted(id interface{}, fields []string) (T, error) {
+func (r *Repository[T]) Get(id interface{}, fields []string) (map[string]any, error) {
 	m := r.New()
-	err := getModel(r.DB, id, m, fields, true)
-	return m, err
+	return getModel(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, false)
 }
 
-func (r *Repository[T]) ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]T, error) {
-	return listModels(r.DB, r.New, r.New().TableName(), r.New().Columns(), fields, limit, offset, orderBy, order, filters, false)
+func (r *Repository[T]) GetDeleted(id interface{}, fields []string) (map[string]any, error) {
+	m := r.New()
+	return getModel(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, true)
 }
 
-func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string) ([]T, error) {
-	return listModels(r.DB, r.New, r.New().TableName(), r.New().Columns(), fields, limit, offset, orderBy, order, nil, true)
+func (r *Repository[T]) ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	m := r.New()
+	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, false)
 }
 
-func (r *Repository[T]) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]T, error) {
-	return bulkGetModels(r.DB, r.New, r.New().TableName(), r.New().Columns(), fields, ids, limit, offset, orderBy, order)
+func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {
+	m := r.New()
+	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, nil, true)
+}
+
+func (r *Repository[T]) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {
+	m := r.New()
+	return bulkGetModels(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, offset, orderBy, order)
 }

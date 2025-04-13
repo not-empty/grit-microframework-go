@@ -13,6 +13,17 @@ type Example struct {
 	DeletedAt *time.Time `json:"deleted_at"`
 }
 
+func (m *Example) Schema() map[string]string {
+	return map[string]string{
+		"id": "string",
+		"name": "string",
+		"age": "int",
+		"created_at": "*time.Time",
+		"updated_at": "*time.Time",
+		"deleted_at": "*time.Time",
+	}
+}
+
 func (m *Example) TableName() string {
 	return "example"
 }

@@ -13,14 +13,6 @@ func JSONResponse(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-func RequireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
-	if r.Method != method {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return false
-	}
-	return true
-}
-
 func ExtractID(path, prefix string) (string, error) {
 	id := strings.TrimPrefix(path, prefix)
 	if id == "" {

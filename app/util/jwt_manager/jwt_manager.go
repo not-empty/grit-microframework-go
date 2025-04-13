@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+// Interface for mocking/testing
+type Manager interface {
+	Generate(audience, subject string, custom map[string]interface{}) string
+	IsValid(token string) (bool, error)
+	IsOnTime(token string) (bool, error)
+	TokenNeedsRefresh(token string) (bool, error)
+	DecodePayload(token string) (map[string]interface{}, error)
+}
+
+// Ensure JwtManager implements the interface
+var _ Manager = (*JwtManager)(nil)
+
+// Struct implementation
 type JwtManager struct {
 	AppSecret string
 	Context   string
@@ -19,7 +32,8 @@ type JwtManager struct {
 	tokenType string
 }
 
-func NewJwtManager(secret, context string, expire, renew int64) *JwtManager {
+// Factory returns the interface
+func NewJwtManager(secret, context string, expire, renew int64) Manager {
 	return &JwtManager{
 		AppSecret: secret,
 		Context:   context,
@@ -29,6 +43,8 @@ func NewJwtManager(secret, context string, expire, renew int64) *JwtManager {
 		tokenType: "JWT",
 	}
 }
+
+// JWT Generation
 
 func (j *JwtManager) getHeader() string {
 	header := map[string]string{
@@ -67,6 +83,8 @@ func (j *JwtManager) Generate(audience, subject string, custom map[string]interf
 	signature := j.getSignature(header, payload)
 	return header + "." + payload + "." + signature
 }
+
+// JWT Validation
 
 func (j *JwtManager) IsValid(token string) (bool, error) {
 	parts := strings.Split(token, ".")
@@ -124,9 +142,10 @@ func (j *JwtManager) DecodePayload(token string) (map[string]interface{}, error)
 	return payload, nil
 }
 
+// Helpers
+
 func base64UrlEncode(data []byte) string {
-	str := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(data)
-	return str
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(data)
 }
 
 func base64UrlDecode(data string) (string, error) {

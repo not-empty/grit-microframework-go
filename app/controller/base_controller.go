@@ -184,8 +184,8 @@ func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-		m := bc.Repo.New()
-		if err := bc.Repo.Get(id, m, fields); err != nil {
+		m, err := bc.Repo.Get(id, fields)
+		if err != nil {
 			helper.JSONError(w, http.StatusNotFound, err)
 			return nil
 		}
@@ -220,18 +220,19 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 		m := bc.Repo.New()
 		bc.SetPK(m, id)
 
-		if err := bc.Repo.Get(id, m, []string{"id"}); err != nil {
+		fetched, err := bc.Repo.Get(id, []string{"id"})
+		if err != nil {
 			helper.JSONError(w, http.StatusNotFound, err)
 			return nil
 		}
 
 		jsonData, _ := json.Marshal(patchData)
-		if err := json.Unmarshal(jsonData, &m); err != nil {
+		if err := json.Unmarshal(jsonData, &fetched); err != nil {
 			helper.JSONError(w, http.StatusBadRequest, err)
 			return nil
 		}
 
-		helper.SanitizeModel(m)
+		helper.SanitizeModel(fetched)
 
 		allCols := m.Columns()
 		fieldIndex := make(map[string]int)

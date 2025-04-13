@@ -13,6 +13,10 @@ import (
 	"github.com/not-empty/grit/app/util/jwt_manager"
 )
 
+var NewJwtManager = func(secret, context string, expire, renew int64) jwt_manager.Manager {
+	return jwt_manager.NewJwtManager(secret, context, expire, renew)
+}
+
 func JwtMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenHeader := r.Header.Get("Authorization")
@@ -43,7 +47,7 @@ func JwtMiddleware(next http.Handler) http.Handler {
 			renew = 300
 		}
 
-		jwtMgr := jwt_manager.NewJwtManager(jwtSecret, contextHeader, expire, renew)
+		jwtMgr := NewJwtManager(jwtSecret, contextHeader, expire, renew)
 
 		if valid, err := jwtMgr.IsValid(token); err != nil || !valid {
 			w.WriteHeader(http.StatusUnauthorized)
