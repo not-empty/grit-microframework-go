@@ -74,15 +74,15 @@ func TestFilterFields_AllInvalid(t *testing.T) {
 }
 
 func TestValidateOrder_ValidAsc(t *testing.T) {
-	require.Equal(t, "asc", helper.ValidateOrder("asc"))
+	require.Equal(t, "ASC", helper.ValidateOrder("ASC"))
 }
 
 func TestValidateOrder_ValidDesc(t *testing.T) {
-	require.Equal(t, "desc", helper.ValidateOrder("desc"))
+	require.Equal(t, "DESC", helper.ValidateOrder("DESC"))
 }
 
 func TestValidateOrder_Invalid(t *testing.T) {
-	require.Equal(t, "desc", helper.ValidateOrder("random"))
+	require.Equal(t, "DESC", helper.ValidateOrder("RANDOM"))
 }
 
 func TestValidateOrderBy_Allowed(t *testing.T) {

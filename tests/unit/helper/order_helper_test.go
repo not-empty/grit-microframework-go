@@ -14,7 +14,7 @@ func TestGetOrderParams_AllValid(t *testing.T) {
 	orderBy, orderDir := helper.GetOrderParams(req, "id")
 
 	require.Equal(t, "name", orderBy)
-	require.Equal(t, "asc", orderDir)
+	require.Equal(t, "ASC", orderDir)
 }
 
 func TestGetOrderParams_MissingOrderBy(t *testing.T) {
@@ -22,7 +22,7 @@ func TestGetOrderParams_MissingOrderBy(t *testing.T) {
 	orderBy, orderDir := helper.GetOrderParams(req, "id")
 
 	require.Equal(t, "id", orderBy)
-	require.Equal(t, "asc", orderDir)
+	require.Equal(t, "ASC", orderDir)
 }
 
 func TestGetOrderParams_InvalidOrderDirection(t *testing.T) {
@@ -30,7 +30,7 @@ func TestGetOrderParams_InvalidOrderDirection(t *testing.T) {
 	orderBy, orderDir := helper.GetOrderParams(req, "id")
 
 	require.Equal(t, "created_at", orderBy)
-	require.Equal(t, "desc", orderDir) // fallback
+	require.Equal(t, "DESC", orderDir) // fallback
 }
 
 func TestGetOrderParams_EmptyQuery(t *testing.T) {
@@ -38,5 +38,5 @@ func TestGetOrderParams_EmptyQuery(t *testing.T) {
 	orderBy, orderDir := helper.GetOrderParams(req, "id")
 
 	require.Equal(t, "id", orderBy)
-	require.Equal(t, "desc", orderDir)
+	require.Equal(t, "DESC", orderDir)
 }

@@ -127,8 +127,10 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 		orderBy, order := helper.GetOrderParams(r, "id")
 		limit, offset := helper.GetPaginationParams(r)
 		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+		filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-		list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields)
+		list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields, filters)
+
 		if err != nil {
 			helper.JSONError(w, http.StatusInternalServerError, err)
 			return nil

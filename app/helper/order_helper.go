@@ -13,9 +13,9 @@ func GetOrderParams(r *http.Request, defaultColumn string) (orderBy string, orde
 		orderBy = defaultColumn
 	}
 
-	orderDir = strings.ToLower(query.Get("order"))
-	if orderDir != "asc" && orderDir != "desc" {
-		orderDir = "desc"
+	orderDir = strings.ToUpper(query.Get("order"))
+	if orderDir != "ASC" && orderDir != "DESC" {
+		orderDir = "DESC"
 	}
 
 	return

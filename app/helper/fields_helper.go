@@ -55,8 +55,8 @@ func FilterFields(requested, allowed []string) []string {
 }
 
 func ValidateOrder(order string) string {
-	if order != "asc" && order != "desc" {
-		return "desc"
+	if order != "ASC" && order != "DESC" {
+		return "DESC"
 	}
 	return order
 }

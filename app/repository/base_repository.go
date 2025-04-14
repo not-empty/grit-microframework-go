@@ -65,9 +65,10 @@ func (r *Repository[T]) ListActive(limit, offset int, orderBy, order string, fie
 	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, false)
 }
 
-func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
-	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, nil, true)
+	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, true)
+
 }
 
 func (r *Repository[T]) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {

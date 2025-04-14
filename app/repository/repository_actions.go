@@ -8,6 +8,10 @@ import (
 	"github.com/not-empty/grit/app/helper"
 )
 
+// ScanFunc is the function used to scan rows into a map.
+// In production, it points to helper.GenericScanToMap.
+var ScanFunc = helper.GenericScanToMap
+
 func insertModel(db *sql.DB, m BaseModel) error {
 	cols := m.Columns()
 	values := m.Values()
@@ -81,7 +85,7 @@ func getModel(db *sql.DB, id interface{}, schema map[string]string, table string
 	defer rows.Close()
 
 	if rows.Next() {
-		return helper.GenericScanToMap(rows, schema)
+		return ScanFunc(rows, schema)
 	}
 	return nil, sql.ErrNoRows
 }
@@ -134,7 +138,7 @@ func listModels(
 
 	var list []map[string]any
 	for rows.Next() {
-		row, err := helper.GenericScanToMap(rows, schema)
+		row, err := ScanFunc(rows, schema)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +192,7 @@ func bulkGetModels(
 
 	var list []map[string]any
 	for rows.Next() {
-		row, err := helper.GenericScanToMap(rows, schema)
+		row, err := ScanFunc(rows, schema)
 		if err != nil {
 			return nil, err
 		}
