@@ -200,7 +200,6 @@ func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
-	
 	if err := func() error {
 		if r.Method != http.MethodPatch {
 			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -219,44 +218,35 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		m := bc.Repo.New()
-		bc.SetPK(m, id)
-
-		fetched, err := bc.Repo.Get(id, []string{"id"})
+		fetched, err := bc.Repo.Get(id, bc.Repo.New().Columns())
 		if err != nil {
 			helper.JSONError(w, http.StatusNotFound, err)
 			return nil
 		}
 
-		jsonData, _ := json.Marshal(patchData)
-		if err := json.Unmarshal(jsonData, &fetched); err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
+		for key, value := range patchData {
+			fetched[key] = value
 		}
 
 		helper.SanitizeModel(fetched)
 
-		allCols := m.Columns()
-		fieldIndex := make(map[string]int)
-		for i, col := range allCols {
-			fieldIndex[col] = i
-		}
-
+		allCols := bc.Repo.New().Columns()
 		var updateCols []string
 		var updateVals []interface{}
-		allVals := m.Values()
-
-		for col := range patchData {
-			if i, ok := fieldIndex[col]; ok {
+		for _, col := range allCols {
+			if _, exists := patchData[col]; exists {
 				updateCols = append(updateCols, col)
-				updateVals = append(updateVals, allVals[i])
+				updateVals = append(updateVals, fetched[col])
 			}
 		}
 
-		if _, ok := any(m).(repository.Updatable); ok {
+		if _, ok := any(bc.Repo.New()).(repository.Updatable); ok {
 			updateCols = append(updateCols, "updated_at")
 			updateVals = append(updateVals, time.Now())
 		}
+
+		m := bc.Repo.New()
+		bc.SetPK(m, id)
 
 		if err := bc.Repo.UpdateFields(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
 			helper.JSONError(w, http.StatusInternalServerError, err)
@@ -269,6 +259,7 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusInternalServerError, err)
 	}
 }
+
 
 func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 	if err := func() error {

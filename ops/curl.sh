@@ -117,15 +117,15 @@ print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
 # 6. Delete the user
-# echo "❌ Deleting user $USER_ID..."
-# HEADERS_FILE=$(mktemp)
-# curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/user/delete/$USER_ID" \
-#   -H "Authorization: Bearer $TOKEN" \
-#   -H "Context: $AUTH_CONTEXT" \
-#   -H "Accept: application/json"
-# echo -e "\n🗑️  User deleted."
-# print_custom_headers "$HEADERS_FILE"
-# rm -f "$HEADERS_FILE"
+echo "❌ Deleting user $USER_ID..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/user/delete/$USER_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Accept: application/json"
+echo -e "\n🗑️  User deleted."
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
 
 # 7. Get dead detail
 echo "🕵️ Getting /user/dead_detail/$USER_ID..."
