@@ -33,9 +33,32 @@ type BaseModel interface {
 	Schema() map[string]string
 }
 
+type RepositoryInterface[T BaseModel] interface {
+	New() T
+	Insert(m T) error
+	UpdateFields(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error
+	Delete(m T) error
+	Get(id interface{}, fields []string) (map[string]any, error)
+	GetDeleted(id interface{}, fields []string) (map[string]any, error)
+	ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
+	ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
+	BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error)
+}
+
 type Repository[T BaseModel] struct {
-	DB  *sql.DB
-	New func() T
+	DB      *sql.DB
+	newFunc func() T
+}
+
+func NewRepository[T BaseModel](db *sql.DB, newFunc func() T) *Repository[T] {
+	return &Repository[T]{
+		DB:      db,
+		newFunc: newFunc,
+	}
+}
+
+func (r *Repository[T]) New() T {
+	return r.newFunc()
 }
 
 func (r *Repository[T]) Insert(m T) error {
@@ -68,7 +91,6 @@ func (r *Repository[T]) ListActive(limit, offset int, orderBy, order string, fie
 func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
 	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, true)
-
 }
 
 func (r *Repository[T]) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {

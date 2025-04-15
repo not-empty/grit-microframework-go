@@ -10,7 +10,6 @@ import (
 
 var validate *validator.Validate = validator.New()
 
-// InjectValidator allows overriding the default validator (used in tests or custom setups)
 func InjectValidator(v *validator.Validate) {
 	validate = v
 }

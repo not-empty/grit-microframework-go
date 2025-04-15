@@ -7,6 +7,17 @@ import (
 	"time"
 )
 
+type Generator interface {
+	IsValidFormat(ulidStr string) bool
+	GetTimeFromUlid(ulidStr string) (int64, error)
+	GetDateFromUlid(ulidStr string) (string, error)
+	GetRandomnessFromString(ulidStr string) (string, error)
+	IsDuplicatedTime(t int64) bool
+	HasIncrementLastRandChars(duplicateTime bool) bool
+	Generate(t int64) (string, error)
+	DecodeTime(timePart string) (int64, error)
+}
+
 const (
 	CHARS         = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 	BASE          = 32
@@ -15,16 +26,26 @@ const (
 	RANDOM_LENGTH = 16
 )
 
-type Ulid struct {
+type DefaultGenerator struct {
 	LastGenTime   int64
 	LastRandChars []int
 }
 
-func (u *Ulid) IsValidFormat(ulidStr string) bool {
+func NewDefaultGenerator() *DefaultGenerator {
+	dg := &DefaultGenerator{
+		LastRandChars: make([]int, RANDOM_LENGTH),
+	}
+	for i := 0; i < RANDOM_LENGTH; i++ {
+		dg.LastRandChars[i] = randomInt(0, BASE-1)
+	}
+	return dg
+}
+
+func (u *DefaultGenerator) IsValidFormat(ulidStr string) bool {
 	return len(ulidStr) == TIME_LENGTH+RANDOM_LENGTH
 }
 
-func (u *Ulid) GetTimeFromUlid(ulidStr string) (int64, error) {
+func (u *DefaultGenerator) GetTimeFromUlid(ulidStr string) (int64, error) {
 	if !u.IsValidFormat(ulidStr) {
 		return 0, errors.New("invalid ULID format")
 	}
@@ -32,26 +53,26 @@ func (u *Ulid) GetTimeFromUlid(ulidStr string) (int64, error) {
 	return u.DecodeTime(timePart)
 }
 
-func (u *Ulid) GetDateFromUlid(ulidStr string) (string, error) {
+func (u *DefaultGenerator) GetDateFromUlid(ulidStr string) (string, error) {
 	t, err := u.GetTimeFromUlid(ulidStr)
 	if err != nil {
 		return "", err
 	}
-	return time.Unix(t, 0).Format("2006-01-02 15:04:05"), nil
+	return time.Unix(t/1000, (t%1000)*1e6).Format("2006-01-02 15:04:05"), nil
 }
 
-func (u *Ulid) GetRandomnessFromString(ulidStr string) (string, error) {
+func (u *DefaultGenerator) GetRandomnessFromString(ulidStr string) (string, error) {
 	if !u.IsValidFormat(ulidStr) {
 		return "", errors.New("invalid ULID format")
 	}
 	return ulidStr[TIME_LENGTH:], nil
 }
 
-func (u *Ulid) IsDuplicatedTime(t int64) bool {
+func (u *DefaultGenerator) IsDuplicatedTime(t int64) bool {
 	return t == u.LastGenTime
 }
 
-func (u *Ulid) HasIncrementLastRandChars(duplicateTime bool) bool {
+func (u *DefaultGenerator) HasIncrementLastRandChars(duplicateTime bool) bool {
 	if !duplicateTime {
 		u.LastRandChars = make([]int, RANDOM_LENGTH)
 		for i := 0; i < RANDOM_LENGTH; i++ {
@@ -70,11 +91,10 @@ func (u *Ulid) HasIncrementLastRandChars(duplicateTime bool) bool {
 	return true
 }
 
-func (u *Ulid) Generate(t int64) string {
+func (u *DefaultGenerator) Generate(t int64) (string, error) {
 	if t == 0 {
 		t = int64(time.Now().UnixNano() / 1e6)
 	}
-
 	duplicateTime := u.IsDuplicatedTime(t)
 	u.LastGenTime = t
 
@@ -91,11 +111,10 @@ func (u *Ulid) Generate(t int64) string {
 	for i := 0; i < RANDOM_LENGTH; i++ {
 		randChars += string(CHARS[u.LastRandChars[i]])
 	}
-
-	return timeChars + randChars
+	return timeChars + randChars, nil
 }
 
-func (u *Ulid) DecodeTime(timePart string) (int64, error) {
+func (u *DefaultGenerator) DecodeTime(timePart string) (int64, error) {
 	if len(timePart) != TIME_LENGTH {
 		return 0, errors.New("invalid time part length")
 	}

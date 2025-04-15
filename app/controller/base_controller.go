@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/not-empty/grit/app/helper"
 	"github.com/not-empty/grit/app/repository"
@@ -12,276 +11,299 @@ import (
 )
 
 type BaseController[T repository.BaseModel] struct {
-	Repo   *repository.Repository[T]
+	Repo repository.RepositoryInterface[T]
 	Prefix string
 	SetPK  func(m T, id string)
+	ULIDGen ulid.Generator
+}
+
+func NewBaseController[T repository.BaseModel](repo repository.RepositoryInterface[T], prefix string, setPK func(m T, id string)) *BaseController[T] {
+	bc := &BaseController[T]{
+		Repo:       repo,
+		Prefix:     prefix,
+		SetPK:      setPK,
+		ULIDGen: ulid.NewDefaultGenerator(),
+	}
+	return bc
 }
 
 func (bc *BaseController[T]) Add(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodPost {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		m := bc.Repo.New()
-		if err := json.NewDecoder(r.Body).Decode(m); err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		helper.SanitizeModel(m)
-		if err := helper.ValidatePayload(w, m); err != nil {
-			return nil
-		}
-
-		var u ulid.Ulid
-		id := u.Generate(0)
-		bc.SetPK(m, id)
-
-		now := time.Now()
-		if c, ok := any(m).(repository.Creatable); ok {
-			c.SetCreatedAt(now)
-		}
-		if u, ok := any(m).(repository.Updatable); ok {
-			u.SetUpdatedAt(now)
-		}
-
-		if err := bc.Repo.Insert(m); err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-
-		helper.JSONResponse(w, http.StatusCreated, map[string]string{"id": id})
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodPost {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	m := bc.Repo.New()
+	if err := json.NewDecoder(r.Body).Decode(m); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	helper.SanitizeModel(m)
+	if err := helper.ValidatePayload(w, m); err != nil {
+		return
+	}
+
+	id, err := bc.ULIDGen.Generate(0)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "ULID error")
+		return
+	}
+	bc.SetPK(m, id)
+
+	now := time.Now()
+	if c, ok := any(m).(repository.Creatable); ok {
+		c.SetCreatedAt(now)
+	}
+	if u, ok := any(m).(repository.Updatable); ok {
+		u.SetUpdatedAt(now)
+	}
+
+	if err := bc.Repo.Insert(m); err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Insert error")
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusCreated, map[string]string{"id": id})
 }
 
 func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodPost {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		var input struct {
-			IDs []string `json:"ids"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.IDs) == 0 {
-			helper.JSONError(w, http.StatusBadRequest, "Invalid or empty ids list")
-			return nil
-		}
-
-		orderBy, order := helper.GetOrderParams(r, "id")
-		limit, offset := helper.GetPaginationParams(r)
-		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-
-		list, err := bc.Repo.BulkGet(input.IDs, limit, offset, orderBy, order, fields)
-		if err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-		helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodPost {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	var input struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || len(input.IDs) == 0 {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid or empty Ids list")
+		return
+	}
+
+	orderBy, order, err := helper.GetOrderParams(r, "id")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Order error")
+		return
+	}
+
+	limit, offset, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
+		return
+	}
+
+	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Fields error")
+		return
+	}
+
+	list, err := bc.Repo.BulkGet(input.IDs, limit, offset, orderBy, order, fields)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Bulk error")
+		return
+	}
+	helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
 }
 
 func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodGet {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/dead_detail/")
-		if err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-		m, err := bc.Repo.GetDeleted(id, fields)
-		if err != nil {
-			helper.JSONError(w, http.StatusNotFound, err)
-			return nil
-		}
-
-		helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodGet {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/dead_detail/")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Missing Id")
+		return
+	}
+
+	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	m, err := bc.Repo.GetDeleted(id, fields)
+	if err != nil {
+		helper.JSONError(w, http.StatusNotFound, "Fields error")
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
 }
 
 func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodGet {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		orderBy, order := helper.GetOrderParams(r, "id")
-		limit, offset := helper.GetPaginationParams(r)
-		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-		filters := helper.GetFilters(r, bc.Repo.New().Columns())
-
-		list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields, filters)
-
-		if err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-
-		helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodGet {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	orderBy, order, err := helper.GetOrderParams(r, "id")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Order error")
+		return
+	}
+
+	limit, offset, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
+		return
+	}
+
+	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Fields error")
+		return
+	}
+
+	filters, err := helper.GetFilters(r, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Filters error")
+		return
+	}
+
+	list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields, filters)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "List error")
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
 }
 
 func (bc *BaseController[T]) Delete(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodDelete {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/delete/")
-		if err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		m := bc.Repo.New()
-		bc.SetPK(m, id)
-
-		if err := bc.Repo.Delete(m); err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodDelete {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/delete/")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Missing Id")
+		return
+	}
+
+	m := bc.Repo.New()
+	bc.SetPK(m, id)
+
+	if err := bc.Repo.Delete(m); err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Delete error")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodGet {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/detail/")
-		fmt.Println(id)
-		if err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-		m, err := bc.Repo.Get(id, fields)
-		if err != nil {
-			helper.JSONError(w, http.StatusNotFound, err)
-			return nil
-		}
-
-		helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodGet {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/detail/")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Missing Id")
+		return
+	}
+
+	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	m, err := bc.Repo.Get(id, fields)
+	if err != nil {
+		helper.JSONError(w, http.StatusNotFound, err)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
 }
 
 func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodPatch {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/edit/")
-		if err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		var patchData map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&patchData); err != nil {
-			helper.JSONError(w, http.StatusBadRequest, err)
-			return nil
-		}
-
-		fetched, err := bc.Repo.Get(id, bc.Repo.New().Columns())
-		if err != nil {
-			helper.JSONError(w, http.StatusNotFound, err)
-			return nil
-		}
-
-		for key, value := range patchData {
-			fetched[key] = value
-		}
-
-		helper.SanitizeModel(fetched)
-
-		allCols := bc.Repo.New().Columns()
-		var updateCols []string
-		var updateVals []interface{}
-		for _, col := range allCols {
-			if _, exists := patchData[col]; exists {
-				updateCols = append(updateCols, col)
-				updateVals = append(updateVals, fetched[col])
-			}
-		}
-
-		if _, ok := any(bc.Repo.New()).(repository.Updatable); ok {
-			updateCols = append(updateCols, "updated_at")
-			updateVals = append(updateVals, time.Now())
-		}
-
-		m := bc.Repo.New()
-		bc.SetPK(m, id)
-
-		if err := bc.Repo.UpdateFields(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodPatch {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/edit/")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Missing Id")
+		return
+	}
+
+	var patchData map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&patchData); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid data")
+		return
+	}
+
+	fetched, err := bc.Repo.Get(id, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusNotFound, "Not found")
+		return
+	}
+
+	for key, value := range patchData {
+		fetched[key] = value
+	}
+
+	helper.SanitizeModel(fetched)
+
+	allCols := bc.Repo.New().Columns()
+	var updateCols []string
+	var updateVals []interface{}
+	for _, col := range allCols {
+		if _, exists := patchData[col]; exists {
+			updateCols = append(updateCols, col)
+			updateVals = append(updateVals, fetched[col])
+		}
+	}
+
+	if _, ok := any(bc.Repo.New()).(repository.Updatable); ok {
+		updateCols = append(updateCols, "updated_at")
+		updateVals = append(updateVals, time.Now())
+	}
+
+	m := bc.Repo.New()
+	bc.SetPK(m, id)
+
+	if err := bc.Repo.UpdateFields(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
-
 func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
-	if err := func() error {
-		if r.Method != http.MethodGet {
-			helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return nil
-		}
-
-		orderBy, order := helper.GetOrderParams(r, "id")
-		limit, offset := helper.GetPaginationParams(r)
-		fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-		filters := helper.GetFilters(r, bc.Repo.New().Columns())
-
-		list, err := bc.Repo.ListActive(limit, offset, orderBy, order, fields, filters)
-		if err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, err)
-			return nil
-		}
-
-		helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
-		return nil
-	}(); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodGet {
+		helper.JSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
 	}
+
+	orderBy, order, err := helper.GetOrderParams(r, "id")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Order error")
+		return
+	}
+
+	limit, offset, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
+		return
+	}
+
+	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Fields error")
+		return
+	}
+
+	filters, err := helper.GetFilters(r, bc.Repo.New().Columns())
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Filters error")
+		return
+	}
+
+	list, err := bc.Repo.ListActive(limit, offset, orderBy, order, fields, filters)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "List error")
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
 }

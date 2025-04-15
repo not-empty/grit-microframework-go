@@ -17,7 +17,8 @@ func TestGetFilters_Valid(t *testing.T) {
 	}
 	allowed := []string{"name", "age"}
 
-	result := helper.GetFilters(req, allowed)
+	result, err := helper.GetFilters(req, allowed)
+	require.NoError(t, err)
 	require.Len(t, result, 2)
 	require.Equal(t, "name", result[0].Field)
 	require.Equal(t, "eql", result[0].Operator)
@@ -32,7 +33,8 @@ func TestGetFilters_InvalidSyntax(t *testing.T) {
 	}
 	allowed := []string{"name"}
 
-	result := helper.GetFilters(req, allowed)
+	result, err := helper.GetFilters(req, allowed)
+	require.NoError(t, err)
 	require.Empty(t, result)
 }
 
@@ -44,7 +46,8 @@ func TestGetFilters_NotAllowed(t *testing.T) {
 	}
 	allowed := []string{"name"}
 
-	result := helper.GetFilters(req, allowed)
+	result, err := helper.GetFilters(req, allowed)
+	require.NoError(t, err)
 	require.Empty(t, result)
 }
 

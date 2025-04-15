@@ -13,7 +13,8 @@ func TestGetFieldsParam_ValidFields(t *testing.T) {
 	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,email,created_at"}}
 	allowed := []string{"name", "email", "created_at", "updated_at"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields, err := helper.GetFieldsParam(req, allowed)
+	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"name", "email", "created_at"}, fields)
 }
 
@@ -21,7 +22,8 @@ func TestGetFieldsParam_SomeInvalidFields(t *testing.T) {
 	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,invalid,email"}}
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields, err := helper.GetFieldsParam(req, allowed)
+	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"name", "email"}, fields)
 }
 
@@ -29,7 +31,8 @@ func TestGetFieldsParam_AllInvalid(t *testing.T) {
 	req := &http.Request{URL: &url.URL{RawQuery: "fields=bad1,bad2"}}
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields, err := helper.GetFieldsParam(req, allowed)
+	require.NoError(t, err)
 	require.Nil(t, fields)
 }
 
@@ -37,7 +40,8 @@ func TestGetFieldsParam_EmptyQuery(t *testing.T) {
 	req := &http.Request{URL: &url.URL{RawQuery: ""}}
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields, err := helper.GetFieldsParam(req, allowed)
+	require.NoError(t, err)
 	require.Nil(t, fields)
 }
 

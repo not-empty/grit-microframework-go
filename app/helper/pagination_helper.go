@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func GetPaginationParams(r *http.Request) (limit int, offset int) {
+func GetPaginationParams(r *http.Request) (limit int, offset int, err error) {
 	const fixedLimit = 5
 	page := 1
 
@@ -18,5 +18,5 @@ func GetPaginationParams(r *http.Request) (limit int, offset int) {
 
 	limit = fixedLimit
 	offset = (page - 1) * fixedLimit
-	return
+	return limit, offset, nil
 }

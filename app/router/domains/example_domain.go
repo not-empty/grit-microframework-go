@@ -11,12 +11,9 @@ import (
 
 func init() {
 	registry.RegisterRouteInitializer(func(db *sql.DB) {
-		repo := &repository.Repository[*models.Example]{
-			DB: db,
-			New: func() *models.Example {
-				return new(models.Example)
-			},
-		}
+		repo := repository.NewRepository[*models.Example](db, func() *models.Example {
+			return new(models.Example)
+		})
 		baseRoutes := &route.BaseRoutes[*models.Example]{
 			Repo:   repo,
 			Prefix: "/example",

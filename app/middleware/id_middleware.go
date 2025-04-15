@@ -9,13 +9,17 @@ import (
 	appctx "github.com/not-empty/grit/app/context"
 )
 
-func IdMiddleware(next http.Handler) http.Handler {
-	var u ulid.Ulid
-
+func IdMiddlewareWithGenerator(gen ulid.Generator, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reqID := u.Generate(0)
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, appctx.RequestIDKey, reqID)
+		reqID, err := gen.Generate(0)
+		if err != nil {
+			reqID = "unknown"
+		}
+		ctx := context.WithValue(r.Context(), appctx.RequestIDKey, reqID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func IdMiddleware(next http.Handler) http.Handler {
+	return IdMiddlewareWithGenerator(ulid.NewDefaultGenerator(), next)
 }

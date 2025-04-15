@@ -15,11 +15,7 @@ type BaseRoutes[T repository.BaseModel] struct {
 }
 
 func (br *BaseRoutes[T]) RegisterRoutes() {
-	ctrl := controller.BaseController[T]{
-		Repo:  br.Repo,
-		SetPK: br.SetPK,
-		Prefix: br.Prefix,
-	}
+	ctrl := controller.NewBaseController(br.Repo, br.Prefix, br.SetPK)
 
 	http.Handle(br.Prefix+"/add", middleware.ClosedChain(http.HandlerFunc(ctrl.Add)))
 	http.Handle(br.Prefix+"/bulk", middleware.ClosedChain(http.HandlerFunc(ctrl.Bulk)))

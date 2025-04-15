@@ -13,11 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestRepo(db *sql.DB) *repository.Repository[*models.Example] {
-	return &repository.Repository[*models.Example]{
-		DB:  db,
-		New: func() *models.Example { return &models.Example{} },
-	}
+func newTestRepo(db *sql.DB) repository.RepositoryInterface[*models.Example] {
+	return repository.NewRepository[*models.Example](db, func() *models.Example {
+		return &models.Example{}
+	})
 }
 
 func TestInsert(t *testing.T) {
