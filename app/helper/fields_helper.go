@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-func GetFieldsParam(r *http.Request, allowedFields []string) (fields []string, err error) {
+func GetFieldsParam(r *http.Request, allowedFields []string) (fields []string) {
 	query := r.URL.Query().Get("fields")
 	if query == "" {
-		return nil, nil
+		return nil
 	}
 
 	requested := strings.Split(query, ",")
@@ -25,9 +25,9 @@ func GetFieldsParam(r *http.Request, allowedFields []string) (fields []string, e
 	}
 
 	if len(fields) == 0 {
-		return nil, nil
+		return nil
 	}
-	return fields, nil
+	return fields
 }
 
 func FilterFields(requested, allowed []string) []string {

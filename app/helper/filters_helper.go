@@ -12,7 +12,7 @@ type Filter struct {
 	Value    string
 }
 
-func GetFilters(r *http.Request, allowed []string) (filters []Filter, err error) {
+func GetFilters(r *http.Request, allowed []string) (filters []Filter) {
 	query := r.URL.Query()
 
 	allowedMap := make(map[string]struct{})
@@ -39,7 +39,7 @@ func GetFilters(r *http.Request, allowed []string) (filters []Filter, err error)
 		}
 	}
 
-	return filters, nil
+	return filters
 }
 
 func BuildWhereClause(filters []Filter) (string, []interface{}) {

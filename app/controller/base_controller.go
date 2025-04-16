@@ -81,23 +81,9 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderBy, order, err := helper.GetOrderParams(r, "id")
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Order error")
-		return
-	}
-
-	limit, offset, err := helper.GetPaginationParams(r)
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
-		return
-	}
-
-	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Fields error")
-		return
-	}
+	orderBy, order := helper.GetOrderParams(r, "id")
+	limit, offset := helper.GetPaginationParams(r)
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 
 	list, err := bc.Repo.BulkGet(input.IDs, limit, offset, orderBy, order, fields)
 	if err != nil {
@@ -119,7 +105,7 @@ func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	m, err := bc.Repo.GetDeleted(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Fields error")
@@ -135,30 +121,11 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderBy, order, err := helper.GetOrderParams(r, "id")
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Order error")
-		return
-	}
-
-	limit, offset, err := helper.GetPaginationParams(r)
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
-		return
-	}
-
-	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Fields error")
-		return
-	}
-
-	filters, err := helper.GetFilters(r, bc.Repo.New().Columns())
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Filters error")
-		return
-	}
-
+	orderBy, order := helper.GetOrderParams(r, "id")
+	limit, offset := helper.GetPaginationParams(r)
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
+	
 	list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error")
@@ -203,7 +170,7 @@ func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	m, err := bc.Repo.Get(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, err)
@@ -262,7 +229,7 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 	bc.SetPK(m, id)
 
 	if err := bc.Repo.UpdateFields(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+		helper.JSONError(w, http.StatusInternalServerError, "Edit error")
 		return
 	}
 
@@ -275,29 +242,10 @@ func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderBy, order, err := helper.GetOrderParams(r, "id")
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Order error")
-		return
-	}
-
-	limit, offset, err := helper.GetPaginationParams(r)
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Pagination error")
-		return
-	}
-
-	fields, err := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Fields error")
-		return
-	}
-
-	filters, err := helper.GetFilters(r, bc.Repo.New().Columns())
-	if err != nil {
-		helper.JSONError(w, http.StatusBadRequest, "Filters error")
-		return
-	}
+	orderBy, order := helper.GetOrderParams(r, "id")
+	limit, offset := helper.GetPaginationParams(r)
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
 	list, err := bc.Repo.ListActive(limit, offset, orderBy, order, fields, filters)
 	if err != nil {

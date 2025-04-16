@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// Interface for mocking/testing
 type Manager interface {
 	Generate(audience, subject string, custom map[string]interface{}) string
 	IsValid(token string) (bool, error)
@@ -19,20 +18,17 @@ type Manager interface {
 	DecodePayload(token string) (map[string]interface{}, error)
 }
 
-// Ensure JwtManager implements the interface
 var _ Manager = (*JwtManager)(nil)
 
-// Struct implementation
 type JwtManager struct {
 	AppSecret string
 	Context   string
-	Expire    int64 // in seconds
-	Renew     int64 // in seconds
+	Expire    int64
+	Renew     int64
 	algorithm string
 	tokenType string
 }
 
-// Factory returns the interface
 func NewJwtManager(secret, context string, expire, renew int64) Manager {
 	return &JwtManager{
 		AppSecret: secret,
@@ -44,15 +40,13 @@ func NewJwtManager(secret, context string, expire, renew int64) Manager {
 	}
 }
 
-// JWT Generation
-
-func (j *JwtManager) getHeader() string {
+func (j *JwtManager) GetHeader() string {
 	header := map[string]string{
 		"alg": j.algorithm,
 		"typ": j.tokenType,
 	}
 	data, _ := json.Marshal(header)
-	return base64UrlEncode(data)
+	return Base64UrlEncode(data)
 }
 
 func (j *JwtManager) getPayload(audience, subject string, custom map[string]interface{}) string {
@@ -68,30 +62,28 @@ func (j *JwtManager) getPayload(audience, subject string, custom map[string]inte
 		payload[k] = v
 	}
 	data, _ := json.Marshal(payload)
-	return base64UrlEncode(data)
+	return Base64UrlEncode(data)
 }
 
-func (j *JwtManager) getSignature(header, payload string) string {
+func (j *JwtManager) GetSignature(header, payload string) string {
 	h := hmac.New(sha256.New, []byte(j.AppSecret))
 	h.Write([]byte(header + "." + payload))
-	return base64UrlEncode(h.Sum(nil))
+	return Base64UrlEncode(h.Sum(nil))
 }
 
 func (j *JwtManager) Generate(audience, subject string, custom map[string]interface{}) string {
-	header := j.getHeader()
+	header := j.GetHeader()
 	payload := j.getPayload(audience, subject, custom)
-	signature := j.getSignature(header, payload)
+	signature := j.GetSignature(header, payload)
 	return header + "." + payload + "." + signature
 }
-
-// JWT Validation
 
 func (j *JwtManager) IsValid(token string) (bool, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return false, errors.New("invalid JWT format")
 	}
-	expectedSig := j.getSignature(parts[0], parts[1])
+	expectedSig := j.GetSignature(parts[0], parts[1])
 	if parts[2] != expectedSig && parts[2] != expectedSig+"=" {
 		return false, errors.New("invalid JWT signature")
 	}
@@ -101,7 +93,7 @@ func (j *JwtManager) IsValid(token string) (bool, error) {
 func (j *JwtManager) IsOnTime(token string) (bool, error) {
 	payload, err := j.DecodePayload(token)
 	if err != nil {
-		return false, err
+		return false, errors.New("Illegal base64")
 	}
 	exp, ok := payload["exp"].(float64)
 	if !ok || int64(exp) < time.Now().Unix() {
@@ -113,7 +105,7 @@ func (j *JwtManager) IsOnTime(token string) (bool, error) {
 func (j *JwtManager) TokenNeedsRefresh(token string) (bool, error) {
 	payload, err := j.DecodePayload(token)
 	if err != nil {
-		return false, err
+		return false, errors.New("Illegal base64")
 	}
 	iat, ok := payload["iat"].(float64)
 	if !ok {
@@ -130,25 +122,23 @@ func (j *JwtManager) DecodePayload(token string) (map[string]interface{}, error)
 	if len(parts) != 3 {
 		return nil, errors.New("invalid token format")
 	}
-	payloadJson, err := base64UrlDecode(parts[1])
+	payloadJson, err := Base64UrlDecode(parts[1])
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Illegal base64")
 	}
 	var payload map[string]interface{}
 	err = json.Unmarshal([]byte(payloadJson), &payload)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Illegal payload")
 	}
 	return payload, nil
 }
 
-// Helpers
-
-func base64UrlEncode(data []byte) string {
+func Base64UrlEncode(data []byte) string {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(data)
 }
 
-func base64UrlDecode(data string) (string, error) {
+func Base64UrlDecode(data string) (string, error) {
 	decoded, err := base64.URLEncoding.WithPadding(base64.NoPadding).DecodeString(data)
 	return string(decoded), err
 }

@@ -126,36 +126,55 @@ func (fr *fakeRepository) BulkGet(ids []string, limit, offset int, orderBy, orde
 }
 
 type fakeULIDGenerator struct{}
-
 func (f *fakeULIDGenerator) IsValidFormat(ulidStr string) bool {
 	return true
 }
-
 func (f *fakeULIDGenerator) GetTimeFromUlid(ulidStr string) (int64, error) {
 	return 0, nil
 }
-
 func (f *fakeULIDGenerator) GetDateFromUlid(ulidStr string) (string, error) {
 	return "2020-01-01 00:00:00", nil
 }
-
 func (f *fakeULIDGenerator) GetRandomnessFromString(ulidStr string) (string, error) {
 	return "", nil
 }
-
 func (f *fakeULIDGenerator) IsDuplicatedTime(t int64) bool {
 	return false
 }
-
 func (f *fakeULIDGenerator) HasIncrementLastRandChars(duplicateTime bool) bool {
 	return false
 }
-
 func (f *fakeULIDGenerator) Generate(t int64) (string, error) {
 	return "fake-ulid", nil
 }
-
 func (f *fakeULIDGenerator) DecodeTime(timePart string) (int64, error) {
+	return 0, nil
+}
+
+type errorULIDGen struct{}
+
+func (e *errorULIDGen) IsValidFormat(ulidStr string) bool {
+	return true
+}
+func (e *errorULIDGen) GetTimeFromUlid(ulidStr string) (int64, error) {
+	return 0, nil
+}
+func (e *errorULIDGen) GetDateFromUlid(ulidStr string) (string, error) {
+	return "", nil
+}
+func (e *errorULIDGen) GetRandomnessFromString(ulidStr string) (string, error) {
+	return "", nil
+}
+func (e *errorULIDGen) IsDuplicatedTime(t int64) bool {
+	return false
+}
+func (e *errorULIDGen) HasIncrementLastRandChars(duplicateTime bool) bool {
+	return false
+}
+func (e *errorULIDGen) Generate(t int64) (string, error) {
+	return "", errors.New("ULID error")
+}
+func (e *errorULIDGen) DecodeTime(timePart string) (int64, error) {
 	return 0, nil
 }
 
@@ -177,10 +196,6 @@ func TestNewBaseController(t *testing.T) {
 	model := &fakeModel{}
 	bc.SetPK(model, "123")
 	require.Equal(t, "123", model.ID, "SetPK should set the model's ID")
-	
-	id, err := bc.ULIDGen.Generate(0)
-	require.NoError(t, err, "ULIDGen.Generate should not return an error")
-	require.NotEmpty(t, id, "ULIDGen should return a non-empty ID")
 }
 
 func TestBaseController_Bulk(t *testing.T) {
@@ -522,19 +537,6 @@ func TestBaseController_Add_InsertError(t *testing.T) {
 	require.Contains(t, string(body), "Insert error")
 }
 
-type errorULIDGen struct{}
-
-func (e *errorULIDGen) IsValidFormat(ulidStr string) bool                  { return true }
-func (e *errorULIDGen) GetTimeFromUlid(ulidStr string) (int64, error)         { return 0, nil }
-func (e *errorULIDGen) GetDateFromUlid(ulidStr string) (string, error)        { return "", nil }
-func (e *errorULIDGen) GetRandomnessFromString(ulidStr string) (string, error) { return "", nil }
-func (e *errorULIDGen) IsDuplicatedTime(t int64) bool                       { return false }
-func (e *errorULIDGen) HasIncrementLastRandChars(duplicateTime bool) bool     { return false }
-func (e *errorULIDGen) Generate(t int64) (string, error) {
-	return "", errors.New("ULID error")
-}
-func (e *errorULIDGen) DecodeTime(timePart string) (int64, error) { return 0, nil }
-
 func TestBaseController_Add_ULIDGenerationError(t *testing.T) {
 	fr := &fakeRepository{}
 
@@ -586,4 +588,458 @@ func TestBaseController_Bulk_MethodNotAllowed(t *testing.T) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestBaseController_Bulk_InvalidJSON(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString("{"))
+	rr := httptest.NewRecorder()
+
+	bc.Bulk(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid or empty Ids list")
+}
+
+
+func TestBaseController_Bulk_EmptyIDs(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString(`{"ids": []}`))
+	rr := httptest.NewRecorder()
+
+	bc.Bulk(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid or empty Ids list")
+}
+
+func TestBaseController_Bulk_BulkGetError(t *testing.T) {
+	fr := &fakeRepository{
+		bulkGetError: errors.New("bulk error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString(`{"ids": ["1", "2"]}`))
+	rr := httptest.NewRecorder()
+
+	bc.Bulk(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Bulk error")
+}
+
+func TestDeadDetail_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/fake/dead_detail/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.DeadDetail(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestDeadDetail_MissingId(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/dead_detail/", nil)
+	rr := httptest.NewRecorder()
+
+	bc.DeadDetail(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Missing Id")
+}
+
+func TestDeadDetail_GetDeletedError(t *testing.T) {
+	fr := &fakeRepository{
+		getDeletedError: errors.New("get deleted error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/dead_detail/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.DeadDetail(rr, req)
+
+	res := rr.Result()
+
+	require.Equal(t, http.StatusNotFound, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Fields error")
+}
+
+func TestBaseController_DeadList_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/dead_list", nil)
+	rr := httptest.NewRecorder()
+	bc.DeadList(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestDeadList_ListError(t *testing.T) {
+	fr := &fakeRepository{
+		listDeletedError: errors.New("list error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/dead_list", nil)
+	rr := httptest.NewRecorder()
+	bc.DeadList(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "List error")
+}
+
+func TestBaseController_Delete_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/delete/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Delete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestBaseController_Delete_MissingId(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/fake/delete/", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Delete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Missing Id")
+}
+
+func TestBaseController_Delete_DeleteError(t *testing.T) {
+	fr := &fakeRepository{
+		deleteError: errors.New("delete error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/fake/delete/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Delete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Delete error")
+}
+
+func TestBaseController_Detail_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/detail/1", nil)
+	rr := httptest.NewRecorder()
+	
+	bc.Detail(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestBaseController_Detail_MissingId(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/detail/", nil)
+	rr := httptest.NewRecorder()
+	
+	bc.Detail(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Missing Id")
+}
+
+func TestBaseController_Detail_GetError(t *testing.T) {
+	fr := &fakeRepository{
+		getError: errors.New("get error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/detail/1", nil)
+	rr := httptest.NewRecorder()
+	
+	bc.Detail(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusNotFound, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "get error")
+}
+
+func TestBaseController_Edit_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/edit/1", nil)
+	rr := httptest.NewRecorder()
+	
+	bc.Edit(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestBaseController_Edit_MissingId(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/", bytes.NewBufferString(`{"field": "newValue"}`))
+	rr := httptest.NewRecorder()
+	
+	bc.Edit(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Missing Id")
+}
+
+func TestBaseController_Edit_InvalidData(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString("{"))
+	rr := httptest.NewRecorder()
+	
+	bc.Edit(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid data")
+}
+
+func TestBaseController_Edit_GetError(t *testing.T) {
+
+	fr := &fakeRepository{
+		getError: errors.New("get error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString(`{"field": "newValue"}`))
+	rr := httptest.NewRecorder()
+	
+	bc.Edit(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusNotFound, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Not found")
+}
+
+func TestBaseController_Edit_UpdateError(t *testing.T) {
+	fr := &fakeRepository{
+		updateFieldsError: errors.New("update error"),
+		getResult: map[string]any{"id": "1", "field": "oldValue"},
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+	patchData := map[string]interface{}{
+		"field": "newValue",
+	}
+	patchBytes, err := json.Marshal(patchData)
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBuffer(patchBytes))
+	rr := httptest.NewRecorder()
+	
+	bc.Edit(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Edit error")
+}
+
+func TestBaseController_List_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/fake/list", nil)
+	rr := httptest.NewRecorder()
+
+	bc.List(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+
+func TestBaseController_List_ListError(t *testing.T) {
+	fr := &fakeRepository{
+		listActiveError: errors.New("list error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/list", nil)
+	rr := httptest.NewRecorder()
+
+	bc.List(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "List error")
 }

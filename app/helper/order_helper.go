@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func GetOrderParams(r *http.Request, defaultColumn string) (orderBy string, orderDir string, err error) {
+func GetOrderParams(r *http.Request, defaultColumn string) (orderBy string, orderDir string) {
 	query := r.URL.Query()
 
 	orderBy = query.Get("order_by")
