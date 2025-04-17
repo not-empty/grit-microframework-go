@@ -55,7 +55,7 @@ func setupTokenConfigFile(t *testing.T, content string) func() {
 }
 
 func TestGenerate_InvalidJSON(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
+	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	ctrl := controller.NewAuthController()
@@ -72,7 +72,7 @@ func TestGenerate_InvalidJSON(t *testing.T) {
 }
 
 func TestGenerate_InvalidCredentials(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
+	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	ctrl := controller.NewAuthController()
@@ -95,7 +95,7 @@ func TestGenerate_InvalidCredentials(t *testing.T) {
 }
 
 func TestGenerate_Success(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
+	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	os.Setenv("JWT_APP_SECRET", "myjwtsecret")
@@ -136,7 +136,7 @@ func TestGenerate_Success(t *testing.T) {
 
 func TestLoadTokenConfig_AlreadyPopulated(t *testing.T) {
 	prepopulated := map[string]controller.TokenConfig{
-		"dummy": {Secret: "dummySecret", Name: "DummyApp"},
+		"dummy": {Secret: "dummySecret", Context: "DummyApp"},
 	}
 	ac := &controller.AuthController{
 		Config:     prepopulated,
@@ -182,7 +182,7 @@ func TestLoadTokenConfig_DecodeError(t *testing.T) {
 }
 
 func TestLoadTokenConfig_DefaultPath(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "defaultSecret", "name": "DefaultApp"}}`)
+	teardown := setupTokenConfigFile(t, `{"api": {"secret": "defaultSecret", "context": "DefaultApp"}}`)
 	defer teardown()
 
 	ac := &controller.AuthController{
@@ -195,7 +195,7 @@ func TestLoadTokenConfig_DefaultPath(t *testing.T) {
 	cfg, ok := ac.Config["api"]
 	require.True(t, ok, "Expected configuration key 'api' to be present")
 	require.Equal(t, "defaultSecret", cfg.Secret, "Secret should be 'defaultSecret'")
-	require.Equal(t, "DefaultApp", cfg.Name, "Name should be 'DefaultApp'")
+	require.Equal(t, "DefaultApp", cfg.Context, "Name should be 'DefaultApp'")
 }
 
 func TestLoadTokenConfig_FileOpenError(t *testing.T) {
@@ -223,7 +223,7 @@ func TestLoadTokenConfig_FileOpenError(t *testing.T) {
 }
 
 func TestGenerate_DefaultJwtSecret(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
+	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	os.Unsetenv("JWT_APP_SECRET")

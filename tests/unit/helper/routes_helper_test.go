@@ -67,5 +67,5 @@ func TestSanitizeModel_WithSanitize(t *testing.T) {
 
 func TestSanitizeModel_NoSanitize(t *testing.T) {
 	data := map[string]string{"key": "value"}
-	helper.SanitizeModel(data) // Should not panic
+	helper.SanitizeModel(data)
 }

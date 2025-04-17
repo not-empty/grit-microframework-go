@@ -54,7 +54,6 @@ func TestAuthMiddleware_WithJwtMiddleware(t *testing.T) {
 
 	var jwtCalled, handlerCalled bool
 
-	// Override JwtMiddlewareFunc
 	original := middleware.JwtMiddlewareFunc
 	middleware.JwtMiddlewareFunc = func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

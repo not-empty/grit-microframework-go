@@ -53,8 +53,7 @@ func TestValidatePayload_Invalid(t *testing.T) {
 
 func TestValidatePayload_UnexpectedError(t *testing.T) {
 	w := httptest.NewRecorder()
-	// simulate a type that causes an unexpected error
-	invalidInput := make(chan int) // validator can't validate this
+	invalidInput := make(chan int)
 
 	err := helper.ValidatePayload(w, invalidInput)
 

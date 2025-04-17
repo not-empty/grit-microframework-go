@@ -8,8 +8,6 @@ import (
 	"github.com/not-empty/grit/app/helper"
 )
 
-// ScanFunc is the function used to scan rows into a map.
-// In production, it points to helper.GenericScanToMap.
 var ScanFunc = helper.GenericScanToMap
 
 func insertModel(db *sql.DB, m BaseModel) error {

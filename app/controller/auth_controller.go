@@ -14,14 +14,14 @@ import (
 )
 
 type TokenConfig struct {
-	Secret string `json:"secret"`
-	Name   string `json:"name"`
+	Secret  string `json:"secret"`
+	Context string `json:"context"`
 }
 
 type AuthController struct {
 	Config            map[string]TokenConfig
 	ConfigPath        string
-	JWTManagerFactory func(secret, name string, expire, renew int64) jwt_manager.Manager
+	JWTManagerFactory func(secret, context string, expire, renew int64) jwt_manager.Manager
 	GenerateOverride  func(w http.ResponseWriter, r *http.Request) error
 }
 
@@ -91,8 +91,8 @@ func (ac *AuthController) Generate(w http.ResponseWriter, r *http.Request) {
 				renew = 300
 			}
 
-			jwtMgr := ac.JWTManagerFactory(jwtSecret, cfg.Name, expire, renew)
-			token := jwtMgr.Generate(cfg.Name, "api", map[string]interface{}{})
+			jwtMgr := ac.JWTManagerFactory(jwtSecret, cfg.Context, expire, renew)
+			token := jwtMgr.Generate(cfg.Context, "api", map[string]interface{}{})
 			expires := time.Now().Add(time.Duration(expire) * time.Second).Format("2006-01-02 15:04:05")
 
 			w.Header().Set("X-Token", token)

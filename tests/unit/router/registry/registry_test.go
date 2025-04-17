@@ -33,7 +33,6 @@ func TestRegisterAndGetRegisteredRoutes(t *testing.T) {
 	routes := registry.GetRegisteredRoutes()
 	require.Contains(t, routes, "/test")
 
-	// Optional: Test that the registered handler actually works
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 	routes["/test"].ServeHTTP(w, req)

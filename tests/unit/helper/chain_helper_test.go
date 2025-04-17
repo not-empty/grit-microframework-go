@@ -17,7 +17,6 @@ func TestChain_NoMiddleware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	// Chain with no middleware
 	helper.Chain(finalHandler).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK || w.Body.String() != "final" {

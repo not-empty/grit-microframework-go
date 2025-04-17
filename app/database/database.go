@@ -9,7 +9,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Config holds the database connection configuration.
 type Config struct {
 	User    string
 	Pass    string
@@ -20,15 +19,11 @@ type Config struct {
 	MaxIdle int
 }
 
-// SqlOpenFunc defines a function signature to open SQL connections (mockable).
 var SqlOpenFunc = sql.Open
-
-// DbPingFunc defines how to ping the DB (mockable in tests).
 var DbPingFunc = func(db *sql.DB) error {
 	return db.Ping()
 }
 
-// LoadConfigFromEnv loads DB config from environment variables.
 func LoadConfigFromEnv() Config {
 	maxconn, err1 := strconv.Atoi(os.Getenv("DB_MAX_CONN"))
 	maxidle, err2 := strconv.Atoi(os.Getenv("DB_MAX_IDLE"))
@@ -48,7 +43,6 @@ func LoadConfigFromEnv() Config {
 	}
 }
 
-// Init establishes a new *sql.DB connection from the given config.
 func Init(cfg Config) *sql.DB {
 	if cfg.User == "" || cfg.Pass == "" || cfg.Host == "" || cfg.Port == "" || cfg.Name == "" || cfg.MaxOpen <= 0 || cfg.MaxIdle < 0 {
 		panic("Missing or invalid database configuration")

@@ -17,7 +17,6 @@ import (
 func TestResponseMiddleware_InjectsHeadersAndBody(t *testing.T) {
 	req := httptest.NewRequest("GET", "/profile", nil)
 
-	// Add context with JWT and RequestID
 	req = req.WithContext(context.WithValue(req.Context(), appctx.JwtContextKey, appctx.JwtTokenInfo{
 		Token:   "token-123",
 		Expires: "2099-01-01",

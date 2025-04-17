@@ -41,7 +41,7 @@ func TestJSONError_WithString(t *testing.T) {
 
 func TestJSONError_WithUnknownType(t *testing.T) {
 	rec := httptest.NewRecorder()
-	helper.JSONError(rec, http.StatusInternalServerError, 12345) // unsupported type
+	helper.JSONError(rec, http.StatusInternalServerError, 12345)
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
