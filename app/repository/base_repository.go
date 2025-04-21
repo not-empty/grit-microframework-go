@@ -40,9 +40,9 @@ type RepositoryInterface[T BaseModel] interface {
 	Delete(m T) error
 	Get(id interface{}, fields []string) (map[string]any, error)
 	GetDeleted(id interface{}, fields []string) (map[string]any, error)
-	ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
-	ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
-	BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error)
+	ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
+	ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
+	BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error)
 }
 
 type Repository[T BaseModel] struct {
@@ -83,17 +83,17 @@ func (r *Repository[T]) GetDeleted(id interface{}, fields []string) (map[string]
 	return getModel(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, true)
 }
 
-func (r *Repository[T]) ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (r *Repository[T]) ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
-	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, false)
+	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, false)
 }
 
-func (r *Repository[T]) ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (r *Repository[T]) ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
-	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, offset, orderBy, order, filters, true)
+	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, true)
 }
 
-func (r *Repository[T]) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (r *Repository[T]) BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
 	m := r.New()
-	return bulkGetModels(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, offset, orderBy, order)
+	return bulkGetModels(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, pageCursor, orderBy, order)
 }

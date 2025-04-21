@@ -82,10 +82,14 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderBy, order := helper.GetOrderParams(r, "id")
-	limit, offset := helper.GetPaginationParams(r)
+	limit, pageCursor, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor")
+		return
+	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.BulkGet(input.IDs, limit, offset, orderBy, order, fields)
+	list, err := bc.Repo.BulkGet(input.IDs, limit, pageCursor, orderBy, order, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "Bulk error")
 		return
@@ -122,11 +126,15 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderBy, order := helper.GetOrderParams(r, "id")
-	limit, offset := helper.GetPaginationParams(r)
+	limit, pageCursor, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor")
+		return
+	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 	
-	list, err := bc.Repo.ListDeleted(limit, offset, orderBy, order, fields, filters)
+	list, err := bc.Repo.ListDeleted(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error")
 		return
@@ -243,11 +251,15 @@ func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderBy, order := helper.GetOrderParams(r, "id")
-	limit, offset := helper.GetPaginationParams(r)
+	limit, pageCursor, err := helper.GetPaginationParams(r)
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor")
+		return
+	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.ListActive(limit, offset, orderBy, order, fields, filters)
+	list, err := bc.Repo.ListActive(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error")
 		return

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/not-empty/grit/app/helper"
+
 	appctx "github.com/not-empty/grit/app/context"
 )
 
@@ -46,7 +48,6 @@ func ResponseMiddleware(next http.Handler) http.Handler {
 				jwtInfo = tokenInfo
 			}
 		}
-
 		requestID := ""
 		if rid := r.Context().Value(appctx.RequestIDKey); rid != nil {
 			if str, ok := rid.(string); ok {
@@ -54,17 +55,23 @@ func ResponseMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		w.Header().Set("X-Token", jwtInfo.Token)
-		w.Header().Set("X-Expires", jwtInfo.Expires)
-		w.Header().Set("X-Request-ID", requestID)
-		w.Header().Set("X-Profile", formatProfile(elapsed))
+		h := w.Header()
+		h.Set("X-Token", jwtInfo.Token)
+		h.Set("X-Expires", jwtInfo.Expires)
+		h.Set("X-Request-ID", requestID)
+		h.Set("X-Profile", formatProfile(elapsed))
+
+		if rr.status != http.StatusNoContent {
+			if cursor, err := helper.BuildPageCursor(rr.body.Bytes(), r.URL.Query()); err == nil && cursor != "" {
+				h.Set("X-Page-Cursor", cursor)
+			}
+		}
 
 		if rr.status == http.StatusNoContent {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-
-		w.Header().Set("Content-Type", "application/json")
+		h.Set("Content-Type", "application/json")
 		w.WriteHeader(rr.status)
 		w.Write(rr.body.Bytes())
 	})

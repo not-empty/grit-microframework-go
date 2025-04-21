@@ -86,44 +86,6 @@ func TestGet(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestListActive(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := newTestRepo(db)
-
-	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs(10, 0).
-		WillReturnRows(rows)
-
-	result, err := repo.ListActive(10, 0, "id", "asc", []string{"id", "name", "age"}, nil)
-	require.NoError(t, err)
-	require.Len(t, result, 1)
-	require.Equal(t, "John", result[0]["name"])
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestBulkGet(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := newTestRepo(db)
-
-	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id IN (?, ?) AND deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs("1", "2", 10, 0).
-		WillReturnRows(rows)
-
-	result, err := repo.BulkGet([]string{"1", "2"}, 10, 0, "id", "asc", []string{"id", "name", "age"})
-	require.NoError(t, err)
-	require.Len(t, result, 1)
-	require.Equal(t, "John", result[0]["name"])
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
 func TestGetDeleted(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -139,25 +101,6 @@ func TestGetDeleted(t *testing.T) {
 	result, err := repo.GetDeleted("1", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Equal(t, "John", result["name"])
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestListDeleted(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := newTestRepo(db)
-
-	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE deleted_at IS NOT NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs(10, 0).
-		WillReturnRows(rows)
-
-	result, err := repo.ListDeleted(10, 0, "id", "asc", []string{"id", "name", "age"}, nil)
-	require.NoError(t, err)
-	require.Len(t, result, 1)
-	require.Equal(t, "John", result[0]["name"])
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -206,6 +149,48 @@ func TestGetModel_NoRows(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestListActive(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs(10).
+		WillReturnRows(rows)
+
+	result, err := repo.ListActive(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestListDeleted(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NOT NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs(10).
+		WillReturnRows(rows)
+
+	result, err := repo.ListDeleted(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestListActiveWithFilters(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -214,18 +199,14 @@ func TestListActiveWithFilters(t *testing.T) {
 	repo := newTestRepo(db)
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs("John", 10, 0).
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs("John", 10).
 		WillReturnRows(rows)
 
-	filters := []helper.Filter{
-		{
-			Field:    "name",
-			Operator: "eql",
-			Value:    "John",
-		},
-	}
-	result, err := repo.ListActive(10, 0, "id", "asc", []string{"id", "name", "age"}, filters)
+	filters := []helper.Filter{{Field: "name", Operator: "eql", Value: "John"}}
+	result, err := repo.ListActive(10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -240,18 +221,14 @@ func TestListDeletedWithFilters(t *testing.T) {
 	repo := newTestRepo(db)
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NOT NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs("John", 10, 0).
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NOT NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs("John", 10).
 		WillReturnRows(rows)
 
-	filters := []helper.Filter{
-		{
-			Field:    "name",
-			Operator: "eql",
-			Value:    "John",
-		},
-	}
-	result, err := repo.ListDeleted(10, 0, "id", "asc", []string{"id", "name", "age"}, filters)
+	filters := []helper.Filter{{Field: "name", Operator: "eql", Value: "John"}}
+	result, err := repo.ListDeleted(10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -265,11 +242,13 @@ func TestListActive_QueryError(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs(10, 0).
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs(10).
 		WillReturnError(sql.ErrConnDone)
 
-	result, err := repo.ListActive(10, 0, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.ListActive(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Equal(t, sql.ErrConnDone, err)
@@ -292,14 +271,37 @@ func TestListActive_ScanError(t *testing.T) {
 
 	repo := newTestRepo(db)
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs(10, 0).
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs(10).
 		WillReturnRows(rows)
 
-	result, err := repo.ListActive(10, 0, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.ListActive(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "scan error")
 	require.Nil(t, result)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkGet(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs("1", "2", 10).
+		WillReturnRows(rows)
+
+	result, err := repo.BulkGet([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -310,10 +312,9 @@ func TestBulkGet_EmptyIDs(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	result, err := repo.BulkGet([]string{}, 10, 0, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.BulkGet([]string{}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Nil(t, result)
-
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -325,15 +326,16 @@ func TestBulkGet_QueryError(t *testing.T) {
 	repo := newTestRepo(db)
 
 	expectedErr := sql.ErrConnDone
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id IN (?, ?) AND deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`)).
-		WithArgs("1", "2", 10, 0).
+	mock.ExpectQuery(regexp.QuoteMeta(
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+	)).
+		WithArgs("1", "2", 10).
 		WillReturnError(expectedErr)
 
-	result, err := repo.BulkGet([]string{"1", "2"}, 10, 0, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.BulkGet([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.Error(t, err)
 	require.Equal(t, expectedErr, err)
 	require.Nil(t, result)
-
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -341,8 +343,6 @@ func TestBulkGet_ScanError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
-
-	repo := newTestRepo(db)
 
 	originalScan := repository.ScanFunc
 	repository.ScanFunc = func(scanner interface {
@@ -355,15 +355,118 @@ func TestBulkGet_ScanError(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE id IN (?, ?) AND deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`,
+		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
 	)).
-		WithArgs("1", "2", 10, 0).
+		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
 
-	result, err := repo.BulkGet([]string{"1", "2"}, 10, 0, "id", "asc", []string{"id", "name", "age"})
+	repo := newTestRepo(db)
+
+	result, err := repo.BulkGet([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "scan error")
 	require.Nil(t, result)
-
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestListActive_WithCursor(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	cursor := &helper.PageCursor{
+		LastID:    "2",
+		LastValue: "42",
+	}
+
+	query := regexp.QuoteMeta(
+		`SELECT id, name, age FROM example ` +
+			`WHERE deleted_at IS NULL AND ( id < ? OR ( id = ? AND id < ? ) ) ` +
+			`ORDER BY id DESC LIMIT ?`,
+	)
+
+	mock.ExpectQuery(query).
+		WithArgs(cursor.LastValue, cursor.LastValue, cursor.LastID, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}).
+			AddRow("3", "Alice", 25),
+		)
+
+	list, err := repo.ListActive(10, cursor, "id", "desc", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Equal(t, "Alice", list[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkGet_WithCursor(t *testing.T) {
+    db, mock, err := sqlmock.New()
+    require.NoError(t, err)
+    defer db.Close()
+
+    repo := newTestRepo(db)
+    cursor := &helper.PageCursor{
+        LastID:    "100",
+        LastValue: "20",
+    }
+    ids := []string{"1", "2"}
+
+    mock.ExpectQuery(regexp.QuoteMeta(
+        `SELECT id, name, age FROM example WHERE deleted_at IS NULL `+
+            `AND (id > ? OR (id = ? AND id > ?)) `+
+            `AND id IN (?, ?) ORDER BY id ASC LIMIT ?`,
+    )).
+        WithArgs(
+            cursor.LastValue,
+            cursor.LastValue,
+            cursor.LastID,
+            ids[0],
+            ids[1],
+            5,
+        ).
+        WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}).
+            AddRow("2", "Bob", 28),
+        )
+
+    list, err := repo.BulkGet(ids, 5, cursor, "id", "ASC", []string{"id", "name", "age"})
+    require.NoError(t, err)
+    require.Len(t, list, 1)
+    require.Equal(t, "Bob", list[0]["name"])
+    require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkGet_WithCursorDesc(t *testing.T) {
+    db, mock, err := sqlmock.New()
+    require.NoError(t, err)
+    defer db.Close()
+
+    repo := newTestRepo(db)
+    cursor := &helper.PageCursor{
+        LastID:    "100",
+        LastValue: "20",
+    }
+    ids := []string{"1", "2"}
+
+    mock.ExpectQuery(regexp.QuoteMeta(
+        `SELECT id, name, age FROM example WHERE deleted_at IS NULL `+
+            `AND (id < ? OR (id = ? AND id < ?)) `+
+            `AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+    )).
+        WithArgs(
+            cursor.LastValue,
+            cursor.LastValue,
+            cursor.LastID,
+            ids[0],
+            ids[1],
+            5,
+        ).
+        WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}).
+            AddRow("2", "Bob", 28),
+        )
+
+    list, err := repo.BulkGet(ids, 5, cursor, "id", "DESC", []string{"id", "name", "age"})
+    require.NoError(t, err)
+    require.Len(t, list, 1)
+    require.Equal(t, "Bob", list[0]["name"])
+    require.NoError(t, mock.ExpectationsWereMet())
 }

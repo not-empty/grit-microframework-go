@@ -1,17 +1,20 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit/app/middleware"
 	"github.com/stretchr/testify/require"
 
 	appctx "github.com/not-empty/grit/app/context"
-	"github.com/not-empty/grit/app/middleware"
 )
 
 func TestResponseMiddleware_InjectsHeadersAndBody(t *testing.T) {
@@ -88,4 +91,49 @@ func TestResponseMiddleware_CallsHeaderMethod(t *testing.T) {
 
 	require.Equal(t, "yes", rr.Header().Get("X-Test"))
 	require.Equal(t, http.StatusAccepted, rr.Code)
+}
+
+func TestResponseMiddleware_SetsPageCursorHeader(t *testing.T) {
+	const limit = helper.DefaultPageLimit
+	arr := make([]map[string]interface{}, limit)
+	for i := 0; i < limit; i++ {
+		arr[i] = map[string]interface{}{
+			"id":    fmt.Sprintf("%d", i+1),
+			"value": fmt.Sprintf("value%d", i+1),
+		}
+	}
+	bodyBytes, err := json.Marshal(arr)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/foo", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	handler := middleware.ResponseMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write(bodyBytes)
+	}))
+
+	handler.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	cursor := rr.Header().Get("X-Page-Cursor")
+	require.NotEmpty(t, cursor, "expected X-Page-Cursor header")
+
+	pc, err := helper.DecodeCursor(cursor)
+	require.NoError(t, err)
+	require.Equal(t, "5", pc.LastID)
+	require.Equal(t, "5", pc.LastValue)
+
+	req2 := httptest.NewRequest("GET", "/foo?order_by=value", bytes.NewReader(bodyBytes))
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+	require.Equal(t, http.StatusOK, rr2.Code)
+
+	cursor2 := rr2.Header().Get("X-Page-Cursor")
+	require.NotEmpty(t, cursor2)
+
+	pc2, err := helper.DecodeCursor(cursor2)
+	require.NoError(t, err)
+	require.Equal(t, "5", pc2.LastID)
+	require.Equal(t, "value5", pc2.LastValue)
 }

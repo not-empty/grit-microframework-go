@@ -113,15 +113,15 @@ func (fr *fakeRepository) GetDeleted(id interface{}, fields []string) (map[strin
 	return fr.getDeletedResult, fr.getDeletedError
 }
 
-func (fr *fakeRepository) ListActive(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) ListActive(limit int , pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listActiveResult, fr.listActiveError
 }
 
-func (fr *fakeRepository) ListDeleted(limit, offset int, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listDeletedResult, fr.listDeletedError
 }
 
-func (fr *fakeRepository) BulkGet(ids []string, limit, offset int, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (fr *fakeRepository) BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
 	return fr.bulkGetResult, fr.bulkGetError
 }
 
@@ -1042,4 +1042,71 @@ func TestBaseController_List_ListError(t *testing.T) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), "List error")
+}
+
+func TestBaseController_List_InvalidPageCursor(t *testing.T) {
+    fr := &fakeRepository{}
+    bc := &controller.BaseController[*fakeModel]{
+        Repo:    fr,
+        Prefix:  "/fake",
+        SetPK:   func(m *fakeModel, id string) { m.ID = id },
+        ULIDGen: &fakeULIDGenerator{},
+    }
+
+    req := httptest.NewRequest(http.MethodGet, "/fake/list?page_cursor=not-base64!", nil)
+    rr := httptest.NewRecorder()
+
+    bc.List(rr, req)
+
+    res := rr.Result()
+    require.Equal(t, http.StatusBadRequest, res.StatusCode)
+    body, err := io.ReadAll(res.Body)
+    require.NoError(t, err)
+    require.Contains(t, string(body), "Invalid Page Cursor")
+}
+
+func TestBaseController_DeadList_InvalidPageCursor(t *testing.T) {
+    fr := &fakeRepository{}
+    bc := &controller.BaseController[*fakeModel]{
+        Repo:    fr,
+        Prefix:  "/fake",
+        SetPK:   func(m *fakeModel, id string) { m.ID = id },
+        ULIDGen: &fakeULIDGenerator{},
+    }
+
+    req := httptest.NewRequest(http.MethodGet, "/fake/dead_list?page_cursor=!!!", nil)
+    rr := httptest.NewRecorder()
+
+    bc.DeadList(rr, req)
+
+    res := rr.Result()
+    require.Equal(t, http.StatusBadRequest, res.StatusCode)
+    body, err := io.ReadAll(res.Body)
+    require.NoError(t, err)
+    require.Contains(t, string(body), "Invalid Page Cursor")
+}
+
+func TestBaseController_Bulk_InvalidPageCursor(t *testing.T) {
+    fr := &fakeRepository{
+        bulkGetResult: []map[string]any{{"id": "1", "field": "foo"}},
+    }
+    bc := &controller.BaseController[*fakeModel]{
+        Repo:    fr,
+        Prefix:  "/fake",
+        SetPK:   func(m *fakeModel, id string) { m.ID = id },
+        ULIDGen: &fakeULIDGenerator{},
+    }
+
+    payload := map[string][]string{"ids": {"1"}}
+    b, _ := json.Marshal(payload)
+    req := httptest.NewRequest(http.MethodPost, "/fake/bulk?page_cursor=xxx!", bytes.NewBuffer(b))
+    rr := httptest.NewRecorder()
+
+    bc.Bulk(rr, req)
+
+    res := rr.Result()
+    require.Equal(t, http.StatusBadRequest, res.StatusCode)
+    body, err := io.ReadAll(res.Body)
+    require.NoError(t, err)
+    require.Contains(t, string(body), "Invalid Page Cursor")
 }

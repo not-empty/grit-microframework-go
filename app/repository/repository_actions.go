@@ -93,7 +93,8 @@ func listModels(
 	schema map[string]string,
 	table string,
 	fields []string,
-	limit, offset int,
+	limit int,
+	pageCursor *helper.PageCursor,
 	orderBy, order string,
 	filters []helper.Filter,
 	deleted bool,
@@ -117,16 +118,32 @@ func listModels(
 		}
 	}
 
+	if pageCursor != nil {
+		op := ">"
+		if order == "DESC" {
+			op = "<"
+		}
+		whereClause += fmt.Sprintf(
+			" AND ( %s %s ? OR ( %s = ? AND id %s ? ) )",
+			orderBy, op,
+			orderBy, op,
+		)
+		args = append(args,
+			pageCursor.LastValue,
+			pageCursor.LastValue,
+			pageCursor.LastID,
+		)
+	}
+
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s %s ORDER BY %s %s LIMIT ? OFFSET ?",
+		"SELECT %s FROM %s %s ORDER BY %s %s LIMIT ?",
 		strings.Join(selected, ", "),
 		table,
 		whereClause,
 		orderBy,
 		order,
 	)
-
-	args = append(args, limit, offset)
+	args = append(args, limit)
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -142,7 +159,6 @@ func listModels(
 		}
 		list = append(list, row)
 	}
-
 	return list, nil
 }
 
@@ -153,7 +169,8 @@ func bulkGetModels(
 	pk string,
 	fields []string,
 	ids []string,
-	limit, offset int,
+	limit int,
+	pageCursor *helper.PageCursor,
 	orderBy, order string,
 ) ([]map[string]any, error) {
 	if len(ids) == 0 {
@@ -164,20 +181,48 @@ func bulkGetModels(
 	orderBy = helper.ValidateOrderBy(orderBy, helper.MapKeys(schema))
 	order = helper.ValidateOrder(order)
 
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
+	// Build WHERE clauses
+	where := []string{"deleted_at IS NULL"}
+
+	// Cursor‐paging clause
+	if pageCursor != nil {
+		op := ">"
+		if order == "DESC" {
+			op = "<"
+		}
+		where = append(where, fmt.Sprintf(
+			"(%s %s ? OR (%s = ? AND %s %s ?))",
+			orderBy, op,
+			orderBy, pk, op,
+		))
 	}
-	args = append(args, limit, offset)
+
+	placeholders := make([]string, len(ids))
+	for i := range ids {
+		placeholders[i] = "?"
+	}
+	where = append(where,
+		fmt.Sprintf("%s IN (%s)", pk, strings.Join(placeholders, ", ")),
+	)
+
+	args := []interface{}{}
+	if pageCursor != nil {
+		args = append(args,
+			pageCursor.LastValue,
+			pageCursor.LastValue,
+			pageCursor.LastID,
+		)
+	}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	args = append(args, limit)
 
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s WHERE %s IN (%s) AND deleted_at IS NULL ORDER BY %s %s LIMIT ? OFFSET ?",
+		"SELECT %s FROM %s WHERE %s ORDER BY %s %s LIMIT ?",
 		strings.Join(selected, ", "),
 		table,
-		pk,
-		strings.Join(placeholders, ", "),
+		strings.Join(where, " AND "),
 		orderBy,
 		order,
 	)

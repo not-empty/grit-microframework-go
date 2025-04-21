@@ -10,7 +10,7 @@ AUTH_SECRET="d22337700548a5aa91adbb353e8bcb9968e112c8b03c2077bb94228ec5954245fe7
 function print_custom_headers() {
   local headers_file="$1"
   echo "🔐 Custom headers:"
-  grep -iE '^x-(token|expires|request-id):' "$headers_file" | tr -d '\r'
+  grep -iE '^x-(token|expires|request-id|page-cursor):' "$headers_file" | tr -d '\r'
   echo
 }
 

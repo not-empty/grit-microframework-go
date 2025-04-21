@@ -1,41 +1,53 @@
 # GRIT – Go REST Interface Toolkit
 
-GRIT is a minimalist microservice framework built in pure Go. Designed to simplify RESTful API development without sacrificing performance, it draws inspiration from ALA (Automatic Lumen API) while embracing Go's philosophy of simplicity, concurrency, and clarity.
+GRIT is a minimalist microservice framework built in pure Go. Designed to simplify RESTful API development without sacrificing performance, it draws inspiration from ALA while embracing Go's philosophy of simplicity, concurrency, and clarity.
 
-## Docker Execution
-Use docker-compose to run the project
+---
+
+## 🚀 Quickstart
+
+### 1. Clone
+```bash
+git clone https://github.com/not-empty/grit.git
+```
+
+### 2. Docker Compose
+Bring up the service and its MySQL dependency:
 ```bash
 docker-compose up -d
 ```
-Run the container:
+
+Enter the running container:
 ```bash
 docker exec -it grit sh
 ```
 
-## Set the Environment
-Copy the `.env.example` to a `.env` file to run API
+### 3. Environment
+Copy `.env.example` to `.env` and adjust:
 ```env
-APP_ENV=local # if "local" the errors will be exposed in the body of the request
-APP_LOG=true # if "true" the access log will be enabled in terminal
-APP_NO_AUTH=true # if "true" will bypass authentication (not recommended in productio)
-APP_PORT=8001 # port to use in runtime"
+APP_ENV=local           # expose errors in response when "local"
+APP_LOG=true            # enable HTTP access logs
+APP_NO_AUTH=true        # disable auth (not for production)
+APP_PORT=8001           # HTTP port
 
-DB_DRIVER=mysql # only has been developed and tested with mysql
-DB_HOST=grit-mysql # database url host
-DB_MAX_CONN=100 # database max connections
-DB_MAX_IDLE=100 # database max iddle connections
-DB_NAME=grit # database name
-DB_PASS=password  # database password
-DB_PORT=3306 # databse port
-DB_USER=user # database username
+DB_DRIVER=mysql         # only MySQL supported
+DB_HOST=grit-mysql
+DB_NAME=grit
+DB_USER=user
+DB_PASS=password
+DB_PORT=3306
+DB_MAX_CONN=100
+DB_MAX_IDLE=10
 
-JWT_APP_SECRET=secret # JWT secret to token generation
-JWT_EXPIRE=900 # JWT token expiration
-JWT_RENEW=600 # JWT automatcly renewing time
+JWT_APP_SECRET=secret   # JWT signing secret
+JWT_EXPIRE=900          # expiration seconds
+JWT_RENEW=600           # auto-renew threshold seconds
 ```
 
-## JWT Token Configurations
-Copy the `./congig/tokens.json.example` to a `./config/tokens.json` file and change the tokens names, secrets and context inside (Higly recommended)
+Also copy `./config/tokens.json.example` → `./config/tokens.json` to configure valid tokens and contexts.
+
+---
+
 
 ## Run the API
 Run GRIT with:
@@ -43,140 +55,162 @@ Run GRIT with:
 run go main.go
 ```
 
-## Request-ID and Profile Headers
-Every request should include:
-- `X-Request-ID`: unique request identifier (ULID)
-- `X-Profile` profile to enable performance profiling
+## 🎯 Endpoints
 
-## JWT Authentication
-To Generate a JWT token and authenticate in the API (change accord your token configurations):
+| Method | Path                      | Description                             |
+| ------ | ------------------------- | --------------------------------------- |
+| POST   | `/example/add`            | Create a new record                    |
+| POST   | `/example/bulk`           | Fetch specific records by IDs          |
+| GET    | `/example/dead_detail/{id}` | Get a deleted record by ID           |
+| GET    | `/example/dead_list`      | List deleted records (paginated)       |
+| DELETE | `/example/delete/{id}`    | Soft-delete a record by ID             |
+| GET    | `/example/detail/{id}`    | Get an active record by ID             |
+| PATCH  | `/example/edit/{id}`      | Update specific fields                 |
+| GET    | `/example/list`           | List active records (paginated)        |
+
+---
+
+## 🔐 Authentication & Authorization
+
+1. **Generate a JWT**
+   ```bash
+   curl -i -X POST http://localhost:$APP_PORT/auth/generate \
+     -H "Content-Type: application/json" \
+     -H "Context: <your-context>" \
+     -d '{"token":"<token>","secret":"<secret>"}'
+   ```
+   On success you get HTTP 204 with headers:
+   - `X-Token`: JWT
+   - `X-Expires`: expiration timestamp
+
+2. **Make API calls**
+   ```bash
+   curl -i GET http://localhost:$APP_PORT/example/list \
+     -H "Authorization: Bearer <JWT>" \
+     -H "Context: <your-context>" \
+     -H "Accept: application/json"
+   ```
+   Every valid response return your valid token or renews it if is needed, always in the headers:
+   - `X-Token`: new JWT
+   - `X-Expires`: new expiration
+
+---
+
+## 📦 Request & Response Headers
+
+| Header           | Description                                      |
+|------------------|--------------------------------------------------|
+| `X-Request-ID`   | Unique ULID for the request                      |
+| `X-Profile`      | Profiling timer (seconds)                        |
+| `X-Token`        | JWT token (on auth or renew)                     |
+| `X-Expires`      | JWT expiration timestamp                         |
+| `X-Page-Cursor`  | Cursor for next page (string)                    |
+
+---
+
+## 🔄 Pagination with Cursor
+
+By default endpoints return up to **25** items and include an `X-Page-Cursor` header when more pages exist.
+
+1. **First page** (no cursor):
+   ```bash
+   curl -i GET "http://localhost:$APP_PORT/example/list" \
+     -H "Authorization: Bearer <JWT>"
+   ```
+   ```http
+   HTTP/1.1 200 OK
+   X-Page-Cursor: eyJsYXN0X2lkIjo...   # opaque cursor
+   Content-Type: application/json
+   [
+     {"id":"1","name":"Alice"},
+     ...
+   ]
+   ```
+
+2. **Next page**:
+   ```bash
+   curl -i GET "http://localhost:$APP_PORT/example/list?page_cursor=<cursor>" \
+     -H "Authorization: Bearer <JWT>"
+   ```
+
+Once fewer than **25** records return, no `X-Page-Cursor` is emitted (end of list).
+
+---
+
+## 🧮 Ordering & Field Selection
+
+- **Order** by any column:
+  `?order_by=name&order=desc`
+
+- **Select fields**: the default is all the fields
+  `?fields=id,name,created_at`
+
+Example:
 ```bash
-curl -X POST 'http://localhost:APP_PORT/auth/generate' \
-  -H 'Content-Type: application/json' \
-  -H 'Context: <context>' \
-  -d '{"token":"<token>","secret":"<secret>"}'
+curl -i GET "http://localhost:$APP_PORT/example/list?order_by=age&order=asc&fields=id,name" \
+  -H "Authorization: Bearer <JWT>"
 ```
 
-After generation, you'll receive a HTTP 204 Response Including these headers:
-- `X-Token`: your JWT Token
-- `X-Expires`: JWT token expiration datetime
+---
 
-## Authorization
-In each request you will need to pass the Autorization Bearer and the Context HTTP headers:
-```bash
-curl 'http://localhost:${APP_PORT}/example/list' \
-  -H 'Authorization: Bearer <jwt>' \
-  -H 'Context: <context>' \
-  -H 'Accept: application/json'
+## 🧪 Filtering
+
+Use `filter` params:
 ```
-Every valid request will return a JWT Token and its expiration in the headers:
-- `X-Token`: A valid JWT Token to do new requests.
-- `X-Expires` The expiration datetime.
-When your token is about to expire (according to you `.env` configurations), a valid request will always automaticly returns a renewed JWT and its new expiration.
-
-## Endpoints
-The API have an example model called `example` and its default endpoints:
-
-| Method | Path                       | Description                           |
-| ------ | -------------------------- | ------------------------------------- |
-| POST   | /example/add               | Create a new record                   |
-| POST   | /example/bulk              | List data for especific records       |
-| GET    | /example/dead_detail/{id}  | Get data for especific deleted record |
-| GET    | /example/dead_list         | List all deleted data (paginated)     |
-| DELETE | /example/delete/{id}       | Delete a specific record              |
-| GET    | /example/detail/{id}       | Get data for especific deleted record |
-| PATCH  | /example/edit/{id}         | Update fields for a specific record   |
-| GET    | /example/list              | List all data (paginated)             |
-
-### Example: Add
-```bash
-curl -X POST http://localhost:${APP_PORT}/example/add \
-  -H 'Content-Type: application/json' \
-  -H 'X-Request-Id: <ulid>' \
-  -H 'X-Token: <token>' \
-  -d '{"name":"John","age":30}'
+?filter=age:eql:30&filter=name:lik:John
 ```
+Supported operators:
+- `eql`  → `=`   
+- `neq` → `!=`  
+- `lik` → `LIKE` (contains)  
+- `gt`  → `>`   
+- `lt`  → `<`   
+- `gte` → `>=`  
+- `lte` → `<=`  
+- `btw` → `BETWEEN` (value1,value2)  
+- `nul` → `IS NULL`
+- `nnu` → `IS NOT NULL`  
+- `in`  → `IN` (comma list)  
 
-### Testing Example Domain
-You can see and run all example endpoints in the `./ops/curl.sh`
+---
 
-## Creating a new Domains
-To create a new domain first you have to save the MySQL DDL in the `./cmd/sql/{name}.sql`, you can use the `./cmd/sql/example.sql.example` as base.
+## 📂 Generators
 
-The sql must have the fields id, created_at, updated_at and deleted_at and the types must be respected.
+- **New Domain** (with DDL in `./cmd/sql/{name}.sql`):
+  ```bash
+  cd cmd
+  go run domain.go -domain=name
+  ```
 
-And then
-```bash
-cd cmd
-go run domain.go -domain={name}
-```
-This generates:
-- `app/repository/models/{name}_model.go`
+Generated files:
+- `app/repository/models/{name}_model.go`  
 - `app/router/domains/{name}_domain.go`
-The generated files do not have logic so don't mess with test coverage.
 
-## Generating Routes
-Optionally you can creating a new generic route:
-```bash
-cd cmd
-go run route.go -domain={name}
-```
-This generates:
-- `app/router/routes/{name}_route.go`
-- `app/controller/{name}_controller.go`
-Note that this generated files have logic so they will impact in the test coverage
+> Generated code for new domains are test free since they are abstract of the basic implementations.
 
-## Audit and Test Coverage
-Check overall test coverage:
+- **Generate Route**:
+  ```bash
+  cd cmd
+  go run route.go -route=name
+  ```
+
+Generated files:
+- `app/controller/{name}_controller.go`         
+- `app/router/routes/{name}_router.go`
+
+> Generated code for new routes will counts toward coverage—tests since they are new logic.
+
+---
+
+## ✔️ Testing & Coverage
+
+Run all tests with coverage:
 ```bash
 ./audit.sh
 ```
-Sample output:
-```
-🔍 Auditing Unit test coverage per package...
-
-✅ github.com/not-empty/grit - 100.0%
-✅ github.com/not-empty/grit/app/controller - 100.0%
-✅ github.com/not-empty/grit/app/database - 100.0%
-✅ github.com/not-empty/grit/app/helper - 100.0%
-✅ github.com/not-empty/grit/app/middleware - 100.0%
-✅ github.com/not-empty/grit/app/repository - 100.0%
-✅ github.com/not-empty/grit/app/router - 100.0%
-✅ github.com/not-empty/grit/app/router/registry - 100.0%
-✅ github.com/not-empty/grit/app/util/jwt_manager - 100.0%
-✅ github.com/not-empty/grit/app/util/ulid - 100.0%
-
-📊 Total project coverage: 100.0%
-
-🧪 View detailed HTML coverage report:
-👉  ./tests/coverage/coverage-unit.html
-
-```
-
-## Running Unit Tests
-Run all tests without coverage:
-```bash
-./test.sh
-```
-
-## Filtering Options
-Use the `filter` query parameter to filter results:
-```
-?filter=field:operator:value
-```
-Supported operators:
-
-| Operator  | Example                                           | SQL Clause                                         |
-| --------- | ------------------------------------------------- | -------------------------------------------------- |
-| `eq`      | `filter=age:eq:30`                                | `age = 30`                                         |
-| `gt`      | `filter=age:gt:30`                                | `age > 30`                                         |
-| `lt`      | `filter=age:lt:30`                                | `age < 30`                                         |
-| `gte`     | `filter=age:gte:18`                               | `age >= 18`                                        |
-| `lte`     | `filter=created_at:lte:2024-12-31`                | `created_at <= '2024-12-31'`                       |
-| `like`    | `filter=email:like:gmail.com`                     | `email LIKE '%gmail.com%'`                         |
-| `isnull`  | `filter=deleted_at:isnull:true`                   | `deleted_at IS NULL`                               |
-| `between` | `filter=created_at:between:2024-01-01,2024-12-31` | `created_at BETWEEN '2024-01-01' AND '2024-12-31'` |
+See `./tests/coverage/coverage-unit.html` for details.
 
 ---
-For now, this covers the basic usage of Grit. Feel free to suggest improvements!
+
+For more examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
 
