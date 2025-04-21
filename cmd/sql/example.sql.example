@@ -1,10 +1,10 @@
 CREATE TABLE example (
   id CHAR(26) NOT NULL,
-  name TEXT DEFAULT NULL, -- sanitize-html
+  name TEXT DEFAULT NULL,
   age INT DEFAULT 0,
   created_at DATETIME DEFAULT NULL,
   updated_at DATETIME DEFAULT NULL,
   deleted_at DATETIME DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY idx_id (id)
+  KEY `example_id_idx` (`id`) USING BTREE,
+  KEY `example_deleted_at_idx` (`deleted_at`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
