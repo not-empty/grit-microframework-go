@@ -33,6 +33,17 @@ func Capitalize(s string) string {
 	return string(r)
 }
 
+func SnakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	for i, p := range parts {
+		if p == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+	}
+	return strings.Join(parts, "")
+}
+
 func extractTableName(ddl string) string {
 	ddl = strings.TrimSpace(ddl)
 	ddlLower := strings.ToLower(ddl)
@@ -58,6 +69,7 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 		if line == "" || strings.HasPrefix(line, ")") ||
 			strings.HasPrefix(upperLine, "PRIMARY") ||
 			strings.HasPrefix(upperLine, "KEY") ||
+			strings.HasPrefix(upperLine, "UNIQUE") ||
 			strings.HasPrefix(upperLine, "CREATE TABLE") {
 			continue
 		}
@@ -76,19 +88,25 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 		sqlType := strings.ToLower(tokens[1])
 		var goType string
 		switch {
+		case strings.Contains(sqlType, "tinyint"):
+			goType = "int"
+		case strings.Contains(sqlType, "datetime"):
+			goType = "*time.Time"
+		case strings.Contains(sqlType, "date"):
+			goType = "string"
 		case strings.Contains(sqlType, "int"):
 			goType = "int"
-		case strings.Contains(sqlType, "char"), strings.Contains(sqlType, "text"):
+		case strings.Contains(sqlType, "char"),
+			strings.Contains(sqlType, "text"),
+			strings.Contains(sqlType, "varchar"):
 			goType = "string"
-		case strings.Contains(sqlType, "bool"):
-			goType = "bool"
-		case strings.Contains(sqlType, "date"), strings.Contains(sqlType, "time"):
-			goType = "*time.Time"
+		case strings.Contains(sqlType, "point"):
+			goType = "string"
 		default:
 			goType = "string"
 		}
 
-		fieldName := strings.Title(colName)
+		fieldName := SnakeToCamel(colName)
 		fieldLines = append(fieldLines, fmt.Sprintf("%s %s `json:\"%s\"`", fieldName, goType, colName))
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		valNames = append(valNames, fmt.Sprintf("m.%s", fieldName))
@@ -121,7 +139,7 @@ func main() {
 		log.Fatal("Domain name is required. Use -domain flag.")
 	}
 	domainLower := strings.ToLower(*domainPtr)
-	domainCap := Capitalize(domainLower)
+	domainCap := SnakeToCamel(domainLower)
 
 	ddlPath := filepath.Join("sql", domainLower+".sql")
 	ddlData, err := ioutil.ReadFile(ddlPath)

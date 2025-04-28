@@ -6,6 +6,11 @@ BASE_URL="http://localhost:8001"
 AUTH_CONTEXT="general"
 AUTH_TOKEN="adm"
 AUTH_SECRET="d22337700548a5aa91adbb353e8bcb9968e112c8b03c2077bb94228ec5954245fe7459a1bf39d4e3b9b90a8d60efd2a4c1875755d51ee74175d639579c026fb7"
+DOMAIN="example"
+DATA='{
+  "name": "Example Name",
+  "age": 22
+}'
 
 function print_custom_headers() {
   local headers_file="$1"
@@ -38,14 +43,11 @@ echo "✅ Token acquired. Expires: $EXPIRES"
 # 2. Create a new example
 echo "➕ Creating example..."
 HEADERS_FILE=$(mktemp)
-ADD_RESPONSE=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/example/add" \
+ADD_RESPONSE=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Alice Braga<script>alert(1)</script>",
-    "age": 22
-  }')
+  -d "$DATA") 
 
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
@@ -61,14 +63,11 @@ echo "✅ example created with ID: $example_ID"
 # 3. Create a new example 2
 echo "➕ Creating example..."
 HEADERS_FILE=$(mktemp)
-ADD_RESPONSE_2=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/example/add" \
+ADD_RESPONSE_2=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "João Castro<script>alert(1)</script>",
-    "age": 19
-  }')
+  -d "$DATA")
 
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
@@ -85,7 +84,7 @@ echo "✅ example created with ID: $example_ID"
 # 4. Get initial detail
 echo "🔎 Fetching example detail (before edit)..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/example/detail/$example_ID" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq
@@ -95,7 +94,7 @@ rm -f "$HEADERS_FILE"
 # 4. Edit the example
 echo "✏️ Updating example $example_ID..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/example/edit/$example_ID" \
+curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/edit/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
@@ -109,7 +108,7 @@ rm -f "$HEADERS_FILE"
 # 5. Get updated detail
 echo "🔎 Fetching example detail (after edit)..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/example/detail/$example_ID" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq
@@ -119,7 +118,7 @@ rm -f "$HEADERS_FILE"
 # 6. Delete the example
 echo "❌ Deleting example $example_ID..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/example/delete/$example_ID" \
+curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/$DOMAIN/delete/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json"
@@ -128,9 +127,9 @@ print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
 # 7. Get dead detail
-echo "🕵️ Getting /example/dead_detail/$example_ID..."
+echo "🕵️ Getting /$DOMAIN/dead_detail/$example_ID..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/example/dead_detail/$example_ID" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_detail/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq
@@ -138,9 +137,9 @@ print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
 # 8. List deleted examples
-echo "📋 Listing /example/dead_list..."
+echo "📋 Listing /$DOMAIN/dead_list..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/example/dead_list" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq
@@ -150,7 +149,7 @@ rm -f "$HEADERS_FILE"
 # 9. List active examples (final)
 echo "📥 Listing examples (after delete)..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/example/list" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq
@@ -160,7 +159,7 @@ rm -f "$HEADERS_FILE"
 # 10. Bulk fetch by ID
 echo "📦 Bulk fetching example $example_ID..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/example/bulk" \
+curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
