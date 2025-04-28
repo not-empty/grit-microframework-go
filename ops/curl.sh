@@ -11,6 +11,10 @@ DATA='{
   "name": "Example Name",
   "age": 22
 }'
+EDIT_DATA='{
+  "name": "New Edited Name",
+  "age": 99
+}'
 
 function print_custom_headers() {
   local headers_file="$1"
@@ -40,8 +44,8 @@ fi
 
 echo "✅ Token acquired. Expires: $EXPIRES"
 
-# 2. Create a new example
-echo "➕ Creating example..."
+# 2. Create a new data
+echo "➕ Creating data..."
 HEADERS_FILE=$(mktemp)
 ADD_RESPONSE=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
   -H "Authorization: Bearer $TOKEN" \
@@ -60,8 +64,8 @@ if [[ "$example_ID" == "null" || -z "$example_ID" ]]; then
 fi
 echo "✅ example created with ID: $example_ID"
 
-# 3. Create a new example 2
-echo "➕ Creating example..."
+# 3. Create a new data 2
+echo "➕ Creating data..."
 HEADERS_FILE=$(mktemp)
 ADD_RESPONSE_2=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
   -H "Authorization: Bearer $TOKEN" \
@@ -74,15 +78,15 @@ rm -f "$HEADERS_FILE"
 
 example_ID_2=$(echo "$ADD_RESPONSE_2" | jq -r '.id')
 if [[ "$example_ID" == "null" || -z "$example_ID" ]]; then
-  echo "❌ Failed to get example ID from add response"
+  echo "❌ Failed to get data ID from add response"
   echo "$ADD_RESPONSE"
   exit 1
 fi
-echo "✅ example created with ID: $example_ID"
+echo "✅ data created with ID: $example_ID"
 
 
 # 4. Get initial detail
-echo "🔎 Fetching example detail (before edit)..."
+echo "🔎 Fetching data detail (before edit)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
@@ -91,22 +95,19 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 4. Edit the example
-echo "✏️ Updating example $example_ID..."
+# 4. Edit the data
+echo "✏️ Updating data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/edit/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Alice Johnson",
-    "age": 44
-  }'
+  -d "$EDIT_DATA"
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
 # 5. Get updated detail
-echo "🔎 Fetching example detail (after edit)..."
+echo "🔎 Fetching data detail (after edit)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
@@ -115,14 +116,14 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 6. Delete the example
-echo "❌ Deleting example $example_ID..."
+# 6. Delete the data
+echo "❌ Deleting data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/$DOMAIN/delete/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json"
-echo -e "\n🗑️  example deleted."
+echo -e "\n🗑️  data deleted."
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
@@ -136,7 +137,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 8. List deleted examples
+# 8. List deleted data
 echo "📋 Listing /$DOMAIN/dead_list..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
@@ -146,7 +147,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 9. List active examples (final)
+# 9. List active data (final)
 echo "📥 Listing examples (after delete)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
@@ -157,7 +158,7 @@ print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
 # 10. Bulk fetch by ID
-echo "📦 Bulk fetching example $example_ID..."
+echo "📦 Bulk fetching data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \
   -H "Authorization: Bearer $TOKEN" \

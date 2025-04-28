@@ -6,6 +6,9 @@ import (
 {{- if .HasSanitize }}
 	"github.com/microcosm-cc/bluemonday"
 {{- end }}
+{{- if .HasDateTime }}
+	"github.com/not-empty/grit/app/helper"
+{{- end }}
 )
 
 type {{.Domain}} struct {

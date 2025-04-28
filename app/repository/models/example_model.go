@@ -5,9 +5,9 @@ import (
 )
 
 type Example struct {
-	ID string `json:"id"`
-	Name string `json:"name"`
-	Age int `json:"age"`
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Age       int        `json:"age"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
@@ -15,9 +15,9 @@ type Example struct {
 
 func (m *Example) Schema() map[string]string {
 	return map[string]string{
-		"id": "string",
-		"name": "string",
-		"age": "int",
+		"id":         "string",
+		"name":       "string",
+		"age":        "int",
 		"created_at": "*time.Time",
 		"updated_at": "*time.Time",
 		"deleted_at": "*time.Time",

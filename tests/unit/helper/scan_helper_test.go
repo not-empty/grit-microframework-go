@@ -100,7 +100,7 @@ func TestGenericScanToMap_DefaultAssignmentNil(t *testing.T) {
 	require.Equal(t, "", result["id"])
 }
 
-func TestGenericScanToMap_TimeFormatOutput(t *testing.T) {
+func TestGenericScanToMap_TimeFormatOutputNullable(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
@@ -117,6 +117,28 @@ func TestGenericScanToMap_TimeFormatOutput(t *testing.T) {
 	require.True(t, r.Next())
 
 	schema := map[string]string{"created_at": "*time.Time"}
+	result, err := helper.GenericScanToMap(r, schema)
+	require.NoError(t, err)
+	require.Equal(t, "2023-10-02 15:04:05", result["created_at"])
+}
+
+func TestGenericScanToMap_TimeFormatOutput(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	dt := time.Date(2023, 10, 2, 15, 4, 5, 0, time.UTC)
+
+	rows := sqlmock.NewRows([]string{"created_at"}).
+		AddRow(dt)
+
+	mock.ExpectQuery("SELECT date").WillReturnRows(rows)
+
+	r, err := db.Query("SELECT date")
+	require.NoError(t, err)
+	require.True(t, r.Next())
+
+	schema := map[string]string{"created_at": "time.Time"}
 	result, err := helper.GenericScanToMap(r, schema)
 	require.NoError(t, err)
 	require.Equal(t, "2023-10-02 15:04:05", result["created_at"])

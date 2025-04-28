@@ -22,6 +22,7 @@ type DomainData struct {
 	Sanitize    string
 	Schema      string
 	HasSanitize bool
+	HasDateTime bool
 }
 
 func Capitalize(s string) string {
@@ -58,7 +59,7 @@ func extractTableName(ddl string) string {
 	return strings.Trim(rest[:end], "`\"")
 }
 
-func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema string, hasSanitize bool) {
+func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema string, hasSanitize bool, hasDateTime bool) {
 	lines := strings.Split(ddl, "\n")
 	var fieldLines, colNames, valNames, sanitizeLines []string
 	schemaMap := make([]string, 0)
@@ -86,31 +87,39 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 		}
 
 		sqlType := strings.ToLower(tokens[1])
-		var goType string
+		var goType, goSchemaType string
 		switch {
 		case strings.Contains(sqlType, "tinyint"):
 			goType = "int"
+			goSchemaType = goType
 		case strings.Contains(sqlType, "datetime"):
-			goType = "*time.Time"
+			goType = "helper.JSONTime"
+			goSchemaType = "time.Time"
+			hasDateTime = true
 		case strings.Contains(sqlType, "date"):
 			goType = "string"
+			goSchemaType = goType
 		case strings.Contains(sqlType, "int"):
 			goType = "int"
+			goSchemaType = goType
 		case strings.Contains(sqlType, "char"),
 			strings.Contains(sqlType, "text"),
 			strings.Contains(sqlType, "varchar"):
 			goType = "string"
+			goSchemaType = goType
 		case strings.Contains(sqlType, "point"):
 			goType = "string"
+			goSchemaType = goType
 		default:
 			goType = "string"
+			goSchemaType = goType
 		}
 
 		fieldName := SnakeToCamel(colName)
 		fieldLines = append(fieldLines, fmt.Sprintf("%s %s `json:\"%s\"`", fieldName, goType, colName))
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		valNames = append(valNames, fmt.Sprintf("m.%s", fieldName))
-		schemaMap = append(schemaMap, fmt.Sprintf("\"%s\": \"%s\"", colName, goType))
+		schemaMap = append(schemaMap, fmt.Sprintf("\"%s\": \"%s\"", colName, goSchemaType))
 
 		if strings.Contains(line, "-- sanitize-html") {
 			sanitizeLines = append(sanitizeLines, fmt.Sprintf("m.%s = policy.Sanitize(m.%s)", fieldName, fieldName))
@@ -152,7 +161,7 @@ func main() {
 		log.Fatalf("Could not extract table name from DDL")
 	}
 
-	extraField, extraColumn, extraValue, sanitize, schema, hasSanitize := parseExtraFields(ddlContent)
+	extraField, extraColumn, extraValue, sanitize, schema, hasSanitize, HasDateTime := parseExtraFields(ddlContent)
 
 	data := DomainData{
 		Domain:      domainCap,
@@ -164,6 +173,7 @@ func main() {
 		Sanitize:    sanitize,
 		Schema:      schema,
 		HasSanitize: hasSanitize,
+		HasDateTime: HasDateTime,
 	}
 
 	modelStubPath := filepath.Join("stubs", "model.stub")

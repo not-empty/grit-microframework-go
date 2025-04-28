@@ -35,7 +35,7 @@ func GenericScanToMap(scanner interface {
 			ptr := new(sql.NullInt64)
 			scanMap[col] = ptr
 			scanArgs[i] = ptr
-		case "*time.time":
+		case "*time.time", "time.time":
 			ptr := new(sql.NullTime)
 			scanMap[col] = ptr
 			scanArgs[i] = ptr
