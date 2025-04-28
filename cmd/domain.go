@@ -64,10 +64,12 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 	var fieldLines, colNames, valNames, sanitizeLines []string
 	schemaMap := make([]string, 0)
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
 		upperLine := strings.ToUpper(line)
-		if line == "" || strings.HasPrefix(line, ")") ||
+
+		if line == "" ||
+			strings.HasPrefix(line, ")") ||
 			strings.HasPrefix(upperLine, "PRIMARY") ||
 			strings.HasPrefix(upperLine, "KEY") ||
 			strings.HasPrefix(upperLine, "UNIQUE") ||
@@ -81,8 +83,9 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 			continue
 		}
 
-		colName := strings.Trim(tokens[0], "`")
-		if colName == "id" || colName == "created_at" || colName == "updated_at" || colName == "deleted_at" {
+		colName := strings.Trim(tokens[0], "`\"")
+		switch colName {
+		case "id", "created_at", "updated_at", "deleted_at":
 			continue
 		}
 
@@ -90,38 +93,59 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 		var goType, goSchemaType string
 		switch {
 		case strings.Contains(sqlType, "tinyint"):
-			goType = "int"
-			goSchemaType = goType
+			goType, goSchemaType = "int", "int"
 		case strings.Contains(sqlType, "datetime"):
-			goType = "helper.JSONTime"
-			goSchemaType = "time.Time"
+			goType, goSchemaType = "helper.JSONTime", "time.Time"
 			hasDateTime = true
 		case strings.Contains(sqlType, "date"):
-			goType = "string"
-			goSchemaType = goType
+			goType, goSchemaType = "string", "string"
 		case strings.Contains(sqlType, "int"):
-			goType = "int"
-			goSchemaType = goType
+			goType, goSchemaType = "int", "int"
 		case strings.Contains(sqlType, "char"),
 			strings.Contains(sqlType, "text"),
 			strings.Contains(sqlType, "varchar"):
-			goType = "string"
-			goSchemaType = goType
+			goType, goSchemaType = "string", "string"
 		case strings.Contains(sqlType, "point"):
-			goType = "string"
-			goSchemaType = goType
+			goType, goSchemaType = "string", "string"
 		default:
-			goType = "string"
-			goSchemaType = goType
+			goType, goSchemaType = "string", "string"
+		}
+
+		isRequired := strings.Contains(upperLine, "NOT NULL")
+
+		var customRules string
+		if idx := strings.Index(raw, "-- validate:"); idx != -1 {
+			rest := strings.TrimSpace(raw[idx+len("-- validate:"):])
+			if len(rest) > 0 {
+				quote := rest[0]
+				if quote == '"' || quote == '\'' {
+					if end := strings.IndexRune(rest[1:], rune(quote)); end != -1 {
+						customRules = rest[1 : 1+end]
+					}
+				}
+			}
+		}
+
+		var rules []string
+		if isRequired {
+			rules = append(rules, "required")
+		}
+		if customRules != "" {
+			rules = append(rules, customRules)
+		}
+
+		tag := fmt.Sprintf("`json:\"%s\"`", colName)
+		if len(rules) > 0 {
+			tag = fmt.Sprintf("`json:\"%s\" validate:\"%s\"`", colName, strings.Join(rules, ","))
 		}
 
 		fieldName := SnakeToCamel(colName)
-		fieldLines = append(fieldLines, fmt.Sprintf("%s %s `json:\"%s\"`", fieldName, goType, colName))
+		fieldLines = append(fieldLines, fmt.Sprintf("%s %s %s", fieldName, goType, tag))
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		valNames = append(valNames, fmt.Sprintf("m.%s", fieldName))
 		schemaMap = append(schemaMap, fmt.Sprintf("\"%s\": \"%s\"", colName, goSchemaType))
 
-		if strings.Contains(line, "-- sanitize-html") {
+		if strings.Contains(raw, "-- sanitize-html") {
 			sanitizeLines = append(sanitizeLines, fmt.Sprintf("m.%s = policy.Sanitize(m.%s)", fieldName, fieldName))
 			hasSanitize = true
 		}

@@ -1,7 +1,7 @@
 CREATE TABLE example (
   id CHAR(26) NOT NULL,
-  name TEXT DEFAULT NULL,
-  age INT DEFAULT 0,
+  name TEXT NOT NULL, -- validate: "min=5" -- sanitize-html
+  age INT DEFAULT 0, -- validate: "required,number,gt=0,lt=100"
   created_at DATETIME DEFAULT NULL,
   updated_at DATETIME DEFAULT NULL,
   deleted_at DATETIME DEFAULT NULL,

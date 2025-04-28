@@ -1,13 +1,14 @@
 package models
 
 import (
+	"github.com/microcosm-cc/bluemonday"
 	"time"
 )
 
 type Example struct {
 	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Age       int        `json:"age"`
+	Name      string     `json:"name" validate:"required,min=5"`
+	Age       int        `json:"age" validate:"required,number,gt=0,lt=100"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
@@ -53,5 +54,6 @@ func (m *Example) SetUpdatedAt(t time.Time) {
 }
 
 func (m *Example) Sanitize() {
-	// no fields to sanitize
+	policy := bluemonday.UGCPolicy()
+	m.Name = policy.Sanitize(m.Name)
 }
