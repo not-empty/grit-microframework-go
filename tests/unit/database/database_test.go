@@ -1,4 +1,4 @@
-package database_test
+package database
 
 import (
 	"database/sql"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/database"
 	"github.com/stretchr/testify/require"
 )
@@ -16,10 +17,10 @@ func TestInit_InvalidConfig_ShouldPanic(t *testing.T) {
 			t.Fatal("expected panic due to invalid config, got none")
 		}
 	}()
-	_ = database.Init(database.Config{})
+	_ = database.Init(database.DatabaseConfig{})
 }
 
-func TestLoadConfigFromEnv_Valid(t *testing.T) {
+func TestLoadDatabaseConfig_Valid(t *testing.T) {
 	t.Setenv("DB_USER", "testuser")
 	t.Setenv("DB_PASS", "testpass")
 	t.Setenv("DB_HOST", "localhost")
@@ -28,7 +29,8 @@ func TestLoadConfigFromEnv_Valid(t *testing.T) {
 	t.Setenv("DB_MAX_CONN", "10")
 	t.Setenv("DB_MAX_IDLE", "5")
 
-	cfg := database.LoadConfigFromEnv()
+	_ = config.LoadConfig()
+	cfg := database.LoadDatabaseConfig()
 
 	require.Equal(t, "testuser", cfg.User)
 	require.Equal(t, "testpass", cfg.Pass)
@@ -39,22 +41,26 @@ func TestLoadConfigFromEnv_Valid(t *testing.T) {
 	require.Equal(t, 5, cfg.MaxIdle)
 }
 
-func TestLoadConfigFromEnv_InvalidNumbers_ShouldPanic(t *testing.T) {
-	t.Setenv("DB_USER", "user")
-	t.Setenv("DB_PASS", "pass")
-	t.Setenv("DB_HOST", "localhost")
-	t.Setenv("DB_PORT", "3306")
-	t.Setenv("DB_NAME", "testdb")
-	t.Setenv("DB_MAX_CONN", "not-a-number")
-	t.Setenv("DB_MAX_IDLE", "5")
+func TestLoadDatabaseConfig_Valid_TestEnv(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("DB_HOST_TEST", "localhost-test")
+	t.Setenv("DB_NAME_TEST", "testdb-test")
+	t.Setenv("DB_PASS_TEST", "testpass-test")
+	t.Setenv("DB_PORT_TEST", "3307")
+	t.Setenv("DB_USER_TEST", "testuser-test")
+	t.Setenv("DB_MAX_CONN", "12")
+	t.Setenv("DB_MAX_IDLE", "6")
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic due to invalid DB_MAX_CONN")
-		}
-	}()
+	_ = config.LoadConfig()
+	cfg := database.LoadDatabaseConfig()
 
-	_ = database.LoadConfigFromEnv()
+	require.Equal(t, "testuser-test", cfg.User)
+	require.Equal(t, "testpass-test", cfg.Pass)
+	require.Equal(t, "localhost-test", cfg.Host)
+	require.Equal(t, "3307", cfg.Port)
+	require.Equal(t, "testdb-test", cfg.Name)
+	require.Equal(t, 12, cfg.MaxOpen)
+	require.Equal(t, 6, cfg.MaxIdle)
 }
 
 func TestInit_WithMockedSQL_Success(t *testing.T) {
@@ -80,7 +86,7 @@ func TestInit_WithMockedSQL_Success(t *testing.T) {
 		return db.Ping()
 	}
 
-	cfg := database.Config{
+	cfg := database.DatabaseConfig{
 		User: "user", Pass: "pass", Host: "localhost", Port: "3306",
 		Name: "testdb", MaxOpen: 5, MaxIdle: 2,
 	}
@@ -97,7 +103,7 @@ func TestInit_SQLConnectionFails_ShouldPanic(t *testing.T) {
 		return nil, errors.New("sql open error")
 	}
 
-	cfg := database.Config{
+	cfg := database.DatabaseConfig{
 		User: "user", Pass: "pass", Host: "localhost", Port: "3306",
 		Name: "testdb", MaxOpen: 5, MaxIdle: 2,
 	}
@@ -131,7 +137,7 @@ func TestInit_PingFails_ShouldPanic(t *testing.T) {
 		return errors.New("ping failure")
 	}
 
-	cfg := database.Config{
+	cfg := database.DatabaseConfig{
 		User: "user", Pass: "pass", Host: "localhost", Port: "3306",
 		Name: "testdb", MaxOpen: 5, MaxIdle: 2,
 	}

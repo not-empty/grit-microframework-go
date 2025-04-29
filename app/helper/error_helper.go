@@ -3,26 +3,37 @@ package helper
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/not-empty/grit/app/config"
 )
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Error  string `json:"error"`
+	Detail string `json:"detail"`
 }
 
-func JSONError(w http.ResponseWriter, status int, msg interface{}) {
+func JSONErrorSimple(w http.ResponseWriter, status int, message string) {
+	JSONError(w, status, message, nil)
+}
+
+func JSONError(w http.ResponseWriter, status int, message string, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	var message string
+	appEnv := config.AppConfig.AppEnv
 
-	switch v := msg.(type) {
-	case error:
-		message = v.Error()
-	case string:
-		message = v
-	default:
-		message = "Unknown error"
+	response := ErrorResponse{
+		Error:  message,
+		Detail: "",
 	}
 
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+	if err != nil {
+		if appEnv == "local" {
+			response.Detail = err.Error()
+		} else {
+			response.Detail = ""
+		}
+	}
+
+	_ = json.NewEncoder(w).Encode(response)
 }

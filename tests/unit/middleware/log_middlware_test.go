@@ -11,6 +11,8 @@ import (
 	"time"
 
 	appctx "github.com/not-empty/grit/app/context"
+
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -18,6 +20,8 @@ import (
 func TestLogMiddleware_SkipsLoggingWhenDisabled(t *testing.T) {
 	os.Setenv("APP_LOG", "false")
 	defer os.Unsetenv("APP_LOG")
+
+	_ = config.LoadConfig()
 
 	called := false
 	req := httptest.NewRequest("GET", "/test-path", nil)
@@ -36,6 +40,8 @@ func TestLogMiddleware_SkipsLoggingWhenDisabled(t *testing.T) {
 func TestLogMiddleware_LogsOutputWhenEnabled(t *testing.T) {
 	os.Setenv("APP_LOG", "true")
 	defer os.Unsetenv("APP_LOG")
+
+	_ = config.LoadConfig()
 
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
@@ -66,6 +72,8 @@ func TestLogMiddleware_LogsOutputWhenEnabled(t *testing.T) {
 func TestLogMiddleware_QueryUnescapeFails(t *testing.T) {
 	os.Setenv("APP_LOG", "true")
 	defer os.Unsetenv("APP_LOG")
+
+	_ = config.LoadConfig()
 
 	var buf bytes.Buffer
 	log.SetOutput(&buf)

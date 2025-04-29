@@ -1,4 +1,4 @@
-package controller_test
+package controller
 
 import (
 	"bytes"
@@ -15,8 +15,10 @@ import (
 	"testing"
 
 	appctx "github.com/not-empty/grit/app/context"
+
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/controller"
-	"github.com/not-empty/grit/app/util/jwt_manager"
+	"github.com/not-empty/grit/app/helper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,23 +44,33 @@ func (f *fakeJwtManager) DecodePayload(token string) (map[string]interface{}, er
 	return map[string]interface{}{}, nil
 }
 
-func setupTokenConfigFile(t *testing.T, content string) func() {
-	err := os.MkdirAll("config", 0755)
+func setAppEnvToLocal() {
+	os.Setenv("APP_ENV", "local")
+	_ = config.LoadConfig()
+}
+
+func setupTokenConfigFile(t *testing.T, content string) (configPath string, teardown func()) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "config")
+
+	err := os.Mkdir(configDir, 0755)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile("config/tokens.json", []byte(content), 0644)
+	configPath = filepath.Join(configDir, "tokens.json")
+	err = os.WriteFile(configPath, []byte(content), 0644)
 	require.NoError(t, err)
 
-	return func() {
-		_ = os.Remove("config/tokens.json")
+	return configPath, func() {
+		_ = os.Remove(configPath)
 	}
 }
 
 func TestGenerate_InvalidJSON(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
+	setAppEnvToLocal()
+	configPath, teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
-	ctrl := controller.NewAuthController()
+	ctrl := controller.NewAuthController(configPath)
 
 	req := httptest.NewRequest("POST", "/auth/generate", bytes.NewBufferString("invalid json"))
 	rr := httptest.NewRecorder()
@@ -72,10 +84,11 @@ func TestGenerate_InvalidJSON(t *testing.T) {
 }
 
 func TestGenerate_InvalidCredentials(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
+	setAppEnvToLocal()
+	configPath, teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
-	ctrl := controller.NewAuthController()
+	ctrl := controller.NewAuthController(configPath)
 
 	reqBody, err := json.Marshal(map[string]string{
 		"token":  "api",
@@ -95,7 +108,9 @@ func TestGenerate_InvalidCredentials(t *testing.T) {
 }
 
 func TestGenerate_Success(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
+	setAppEnvToLocal()
+
+	configPath, teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	os.Setenv("JWT_APP_SECRET", "myjwtsecret")
@@ -105,7 +120,7 @@ func TestGenerate_Success(t *testing.T) {
 	defer os.Unsetenv("JWT_EXPIRE")
 	defer os.Unsetenv("JWT_RENEW")
 
-	ctrl := controller.NewAuthController()
+	ctrl := controller.NewAuthController(configPath)
 
 	reqBody, err := json.Marshal(map[string]string{
 		"token":  "api",
@@ -126,15 +141,16 @@ func TestGenerate_Success(t *testing.T) {
 	expires := rr.Header().Get("X-Expires")
 	reqID := rr.Header().Get("X-Request-ID")
 
-	require.NotEmpty(t, token, "X-Token header should be set")
-	require.NotEmpty(t, expires, "X-Expires header should be set")
-	require.Equal(t, "req-123", reqID, "X-Request-ID header should match")
+	require.NotEmpty(t, token)
+	require.NotEmpty(t, expires)
+	require.Equal(t, "req-123", reqID)
 
 	_, err = time.Parse("2006-01-02 15:04:05", expires)
 	require.NoError(t, err)
 }
 
 func TestLoadTokenConfig_AlreadyPopulated(t *testing.T) {
+	setAppEnvToLocal()
 	prepopulated := map[string]controller.TokenConfig{
 		"dummy": {Secret: "dummySecret", Context: "DummyApp"},
 	}
@@ -148,21 +164,15 @@ func TestLoadTokenConfig_AlreadyPopulated(t *testing.T) {
 }
 
 func TestLoadTokenConfig_DecodeError(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "auth_controller_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	setAppEnvToLocal()
 
-	configDir := filepath.Join(tempDir, "config")
-	err = os.Mkdir(configDir, 0755)
-	require.NoError(t, err)
-
-	configFilePath := filepath.Join(configDir, "tokens.json")
-	err = os.WriteFile(configFilePath, []byte("invalid json content"), 0644)
-	require.NoError(t, err)
+	configPath, teardown := setupTokenConfigFile(t, `invalid json content`)
+	defer teardown()
 
 	ac := &controller.AuthController{
-		Config:     make(map[string]controller.TokenConfig),
-		ConfigPath: configFilePath,
+		Config:            make(map[string]controller.TokenConfig),
+		ConfigPath:        configPath,
+		JWTManagerFactory: nil,
 	}
 
 	var panicMessage string
@@ -174,31 +184,16 @@ func TestLoadTokenConfig_DecodeError(t *testing.T) {
 				}
 			}
 		}()
+
 		ac.LoadTokenConfig()
 	}()
 
 	require.NotEmpty(t, panicMessage, "Expected panic due to JSON decode error")
-	require.Contains(t, panicMessage, "Error decoding tokens config:", "Panic message should indicate JSON decode error")
-}
-
-func TestLoadTokenConfig_DefaultPath(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "defaultSecret", "context": "DefaultApp"}}`)
-	defer teardown()
-
-	ac := &controller.AuthController{
-		Config:     make(map[string]controller.TokenConfig),
-		ConfigPath: "",
-	}
-
-	ac.LoadTokenConfig()
-
-	cfg, ok := ac.Config["api"]
-	require.True(t, ok, "Expected configuration key 'api' to be present")
-	require.Equal(t, "defaultSecret", cfg.Secret, "Secret should be 'defaultSecret'")
-	require.Equal(t, "DefaultApp", cfg.Context, "Name should be 'DefaultApp'")
+	require.Contains(t, panicMessage, "Could not decode tokens config")
 }
 
 func TestLoadTokenConfig_FileOpenError(t *testing.T) {
+	setAppEnvToLocal()
 	ac := &controller.AuthController{
 		Config:     make(map[string]controller.TokenConfig),
 		ConfigPath: "nonexistingfile.json",
@@ -219,118 +214,57 @@ func TestLoadTokenConfig_FileOpenError(t *testing.T) {
 	}()
 
 	require.NotEmpty(t, panicMessage, "Expected panic due to missing config file")
-	require.Contains(t, panicMessage, "Error opening tokens config:", "Panic message should indicate file open error")
+	require.Contains(t, panicMessage, "Could not open tokens config", "Panic message should indicate file open error")
 }
 
-func TestGenerate_DefaultJwtSecret(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
-	defer teardown()
+func TestNewAuthController_DefaultConfigPath(t *testing.T) {
+	setAppEnvToLocal()
 
-	os.Unsetenv("JWT_APP_SECRET")
-	os.Setenv("JWT_EXPIRE", "3600")
-	os.Setenv("JWT_RENEW", "1800")
-	defer os.Unsetenv("JWT_EXPIRE")
-	defer os.Unsetenv("JWT_RENEW")
-
-	ctrl := controller.NewAuthController()
-
-	reqBody, err := json.Marshal(map[string]string{
-		"token":  "api",
-		"secret": "testsecret",
-	})
-	require.NoError(t, err)
-
-	req := httptest.NewRequest("POST", "/auth/generate", bytes.NewBuffer(reqBody))
-	rr := httptest.NewRecorder()
-
-	ctrl.Generate(rr, req)
-
-	require.Equal(t, http.StatusNoContent, rr.Code)
-
-	token := rr.Header().Get("X-Token")
-	require.NotEmpty(t, token, "Expected a token to be generated when JWT_APP_SECRET is not set")
-}
-
-func TestGenerate_DefaultExpire(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
-	defer teardown()
-
-	os.Setenv("JWT_EXPIRE", "0")
-	os.Setenv("JWT_APP_SECRET", "myjwtsecret")
-	os.Setenv("JWT_RENEW", "1800")
-	defer os.Unsetenv("JWT_APP_SECRET")
-	defer os.Unsetenv("JWT_EXPIRE")
-	defer os.Unsetenv("JWT_RENEW")
-
-	ctrl := controller.NewAuthController()
-
-	reqBody, err := json.Marshal(map[string]string{
-		"token":  "api",
-		"secret": "testsecret",
-	})
-	require.NoError(t, err)
-
-	req := httptest.NewRequest("POST", "/auth/generate", bytes.NewBuffer(reqBody))
-	rr := httptest.NewRecorder()
-
-	ctrl.Generate(rr, req)
-
-	require.Equal(t, http.StatusNoContent, rr.Code)
-
-	expHeader := rr.Header().Get("X-Expires")
-	require.NotEmpty(t, expHeader, "X-Expires header should be set")
-
-	expTime, err := time.Parse("2006-01-02 15:04:05", expHeader)
-	require.NoError(t, err)
-
-	now := time.Now()
-	diff := expTime.Sub(now)
-
-	require.True(t, diff.Seconds() >= 895 && diff.Seconds() <= 905,
-		"expected expiration roughly 900 seconds from now, but got %.0f seconds", diff.Seconds())
-}
-
-func TestGenerate_DefaultRenew(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
-	defer teardown()
-
-	os.Setenv("JWT_APP_SECRET", "myjwtsecret")
-	os.Setenv("JWT_EXPIRE", "3600")
-	os.Setenv("JWT_RENEW", "0")
-	defer os.Unsetenv("JWT_APP_SECRET")
-	defer os.Unsetenv("JWT_EXPIRE")
-	defer os.Unsetenv("JWT_RENEW")
-
-	ctrl := controller.NewAuthController()
-
-	originalFactory := ctrl.JWTManagerFactory
-	ctrl.JWTManagerFactory = func(secret, name string, expire, renew int64) jwt_manager.Manager {
-		require.Equal(t, int64(300), renew, "Expected default renew value to be 300 when JWT_RENEW is 0")
-		return &fakeJwtManager{}
-	}
+	ac := &controller.AuthController{}
 	defer func() {
-		ctrl.JWTManagerFactory = originalFactory
+		_ = recover()
+		require.Equal(t, "config/tokens.json", ac.ConfigPath)
 	}()
 
-	reqBody, err := json.Marshal(map[string]string{
-		"token":  "api",
-		"secret": "testsecret",
-	})
-	require.NoError(t, err)
+	ac = controller.NewAuthController("")
+}
 
-	req := httptest.NewRequest("POST", "/auth/generate", bytes.NewBuffer(reqBody))
-	rr := httptest.NewRecorder()
+func TestLoadTokenConfig_ProjectRootError_ShouldPanic(t *testing.T) {
+	setAppEnvToLocal()
 
-	ctrl.Generate(rr, req)
+	originalGetProjectRoot := helper.GetProjectRoot
+	helper.GetProjectRoot = func() (string, error) {
+		return "", fmt.Errorf("simulated project root error")
+	}
+	defer func() { helper.GetProjectRoot = originalGetProjectRoot }()
 
-	require.Equal(t, http.StatusNoContent, rr.Code)
+	ac := &controller.AuthController{
+		Config:     nil,
+		ConfigPath: "",
+	}
 
-	token := rr.Header().Get("X-Token")
-	require.Equal(t, "fakeToken", token)
+	var panicMessage string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if msg, ok := r.(string); ok {
+					panicMessage = msg
+				} else {
+					panicMessage = "panic not a string"
+				}
+			}
+		}()
+
+		ac.LoadTokenConfig()
+	}()
+
+	require.NotEmpty(t, panicMessage, "Expected panic due to GetProjectRoot error")
+	require.Contains(t, panicMessage, "Could not find project root: simulated project root error", "Panic should mention project root error")
 }
 
 func TestGenerate_InternalError(t *testing.T) {
-	teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "name": "TestApp"}}`)
+	setAppEnvToLocal()
+	configPath, teardown := setupTokenConfigFile(t, `{"api": {"secret": "testsecret", "context": "TestApp"}}`)
 	defer teardown()
 
 	os.Setenv("JWT_APP_SECRET", "myjwtsecret")
@@ -340,7 +274,7 @@ func TestGenerate_InternalError(t *testing.T) {
 	defer os.Unsetenv("JWT_EXPIRE")
 	defer os.Unsetenv("JWT_RENEW")
 
-	ctrl := controller.NewAuthController()
+	ctrl := controller.NewAuthController(configPath)
 
 	ctrl.GenerateOverride = func(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("test internal error")

@@ -888,7 +888,7 @@ func TestBaseController_Detail_GetError(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "get error")
+	require.Contains(t, string(body), "Detail error")
 }
 
 func TestBaseController_Edit_MethodNotAllowed(t *testing.T) {

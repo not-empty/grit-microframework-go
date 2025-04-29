@@ -9,11 +9,13 @@ AUTH_SECRET="d22337700548a5aa91adbb353e8bcb9968e112c8b03c2077bb94228ec5954245fe7
 DOMAIN="example"
 DATA='{
   "name": "Example Name",
-  "age": 22
+  "age": 22,
+  "last_login": "2025-04-25 13:30:27"
 }'
 EDIT_DATA='{
   "name": "New Edited Name",
-  "age": 99
+  "age": 99,
+  "last_login": "2025-04-28 23:45:12"
 }'
 
 function print_custom_headers() {

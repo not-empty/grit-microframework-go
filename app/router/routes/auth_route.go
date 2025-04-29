@@ -9,6 +9,6 @@ import (
 )
 
 func init() {
-	ctrl := controller.NewAuthController()
+	ctrl := controller.NewAuthController("")
 	registry.RegisterRoute("/auth/generate", middleware.AuthChain(http.HandlerFunc(ctrl.Generate)))
 }

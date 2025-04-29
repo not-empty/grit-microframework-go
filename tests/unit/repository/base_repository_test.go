@@ -27,8 +27,8 @@ func TestInsert(t *testing.T) {
 	example := &models.Example{ID: "1", Name: "John", Age: 30}
 	repo := newTestRepo(db)
 
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO example (id, name, age, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)`)).
-		WithArgs(example.ID, example.Name, example.Age, nil, nil, nil).
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO example (id, name, age, last_login, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)).
+		WithArgs(example.ID, example.Name, example.Age, nil, nil, nil, nil).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err = repo.Insert(example)

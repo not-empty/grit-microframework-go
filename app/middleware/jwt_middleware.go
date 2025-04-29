@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	appctx "github.com/not-empty/grit/app/context"
+
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/util/jwt_manager"
 )
 
@@ -29,23 +29,9 @@ func JwtMiddleware(next http.Handler) http.Handler {
 
 		token := strings.TrimPrefix(tokenHeader, "Bearer ")
 
-		jwtSecret := os.Getenv("JWT_APP_SECRET")
-		if jwtSecret == "" {
-			jwtSecret = "default_secret"
-		}
-
-		expireStr := os.Getenv("JWT_EXPIRE")
-		renewStr := os.Getenv("JWT_RENEW")
-
-		expire, err := strconv.ParseInt(expireStr, 10, 64)
-		if err != nil || expireStr == "" {
-			expire = 900
-		}
-
-		renew, err := strconv.ParseInt(renewStr, 10, 64)
-		if err != nil || renewStr == "" {
-			renew = 300
-		}
+		jwtSecret := config.AppConfig.JwtAppSecret
+		expire := config.AppConfig.JwtExpire
+		renew := config.AppConfig.JwtRenew
 
 		jwtMgr := NewJwtManager(jwtSecret, contextHeader, expire, renew)
 

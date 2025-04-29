@@ -3,13 +3,12 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/not-empty/grit/app/config"
 )
 
-type Config struct {
+type DatabaseConfig struct {
 	User    string
 	Pass    string
 	Host    string
@@ -24,26 +23,37 @@ var DbPingFunc = func(db *sql.DB) error {
 	return db.Ping()
 }
 
-func LoadConfigFromEnv() Config {
-	maxconn, err1 := strconv.Atoi(os.Getenv("DB_MAX_CONN"))
-	maxidle, err2 := strconv.Atoi(os.Getenv("DB_MAX_IDLE"))
+func LoadDatabaseConfig() DatabaseConfig {
+	appEnv := config.AppConfig.AppEnv
+	isTest := appEnv == "test"
 
-	if err1 != nil || err2 != nil {
-		panic(fmt.Sprintf("Invalid DB_MAX_CONN or DB_MAX_IDLE: %v %v", err1, err2))
+	user := config.AppConfig.DBUser
+	pass := config.AppConfig.DBPass
+	host := config.AppConfig.DBHost
+	port := config.AppConfig.DBPort
+	name := config.AppConfig.DBName
+
+	if isTest {
+
+		user = config.AppConfig.DBUserTest
+		pass = config.AppConfig.DBPassTest
+		host = config.AppConfig.DBHostTest
+		port = config.AppConfig.DBPortTest
+		name = config.AppConfig.DBNameTest
 	}
 
-	return Config{
-		User:    os.Getenv("DB_USER"),
-		Pass:    os.Getenv("DB_PASS"),
-		Host:    os.Getenv("DB_HOST"),
-		Port:    os.Getenv("DB_PORT"),
-		Name:    os.Getenv("DB_NAME"),
-		MaxOpen: maxconn,
-		MaxIdle: maxidle,
+	return DatabaseConfig{
+		User:    user,
+		Pass:    pass,
+		Host:    host,
+		Port:    port,
+		Name:    name,
+		MaxOpen: config.AppConfig.DBMaxConn,
+		MaxIdle: config.AppConfig.DBMaxIdle,
 	}
 }
 
-func Init(cfg Config) *sql.DB {
+func Init(cfg DatabaseConfig) *sql.DB {
 	if cfg.User == "" || cfg.Pass == "" || cfg.Host == "" || cfg.Port == "" || cfg.Name == "" || cfg.MaxOpen <= 0 || cfg.MaxIdle < 0 {
 		panic("Missing or invalid database configuration")
 	}

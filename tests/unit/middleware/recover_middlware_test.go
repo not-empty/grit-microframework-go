@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,8 @@ import (
 func TestRecoverMiddleware_PanicProduction(t *testing.T) {
 	os.Setenv("APP_ENV", "production")
 	defer os.Unsetenv("APP_ENV")
+
+	_ = config.LoadConfig()
 
 	req := httptest.NewRequest("GET", "/panic", nil)
 	rr := httptest.NewRecorder()
@@ -39,6 +42,8 @@ func TestRecoverMiddleware_PanicProduction(t *testing.T) {
 func TestRecoverMiddleware_PanicLocalIncludesStacktrace(t *testing.T) {
 	os.Setenv("APP_ENV", "local")
 	defer os.Unsetenv("APP_ENV")
+
+	_ = config.LoadConfig()
 
 	req := httptest.NewRequest("GET", "/panic", nil)
 	rr := httptest.NewRecorder()

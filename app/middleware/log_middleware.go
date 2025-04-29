@@ -5,10 +5,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	appctx "github.com/not-empty/grit/app/context"
+
+	"github.com/not-empty/grit/app/config"
 )
 
 type statusRecorder struct {
@@ -23,7 +24,7 @@ func (rec *statusRecorder) WriteHeader(code int) {
 
 func LogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if os.Getenv("APP_LOG") != "true" {
+		if !config.AppConfig.AppLog {
 			next.ServeHTTP(w, r)
 			return
 		}

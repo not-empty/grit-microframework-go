@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"strconv"
+	"path/filepath"
 	"time"
 
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/helper"
 	"github.com/not-empty/grit/app/util/jwt_manager"
 
@@ -25,10 +26,14 @@ type AuthController struct {
 	GenerateOverride  func(w http.ResponseWriter, r *http.Request) error
 }
 
-func NewAuthController() *AuthController {
+func NewAuthController(configPath string) *AuthController {
+	if configPath == "" {
+		configPath = "config/tokens.json"
+	}
+
 	ac := &AuthController{
 		Config:            make(map[string]TokenConfig),
-		ConfigPath:        "config/tokens.json",
+		ConfigPath:        configPath,
 		JWTManagerFactory: jwt_manager.NewJwtManager,
 	}
 	ac.LoadTokenConfig()
@@ -41,19 +46,23 @@ func (ac *AuthController) LoadTokenConfig() {
 	}
 
 	path := ac.ConfigPath
-	if path == "" {
-		path = "config/tokens.json"
+	if !filepath.IsAbs(path) {
+		root, err := helper.GetProjectRoot()
+		if err != nil {
+			panic("Could not find project root: " + err.Error())
+		}
+		path = filepath.Join(root, path)
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		panic("Error opening tokens config: " + err.Error())
+		panic("Could not open tokens config: " + err.Error())
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&ac.Config); err != nil {
-		panic("Error decoding tokens config: " + err.Error())
+	err = json.NewDecoder(file).Decode(&ac.Config)
+	if err != nil {
+		panic("Could not decode tokens config: " + err.Error())
 	}
 }
 
@@ -68,28 +77,19 @@ func (ac *AuthController) Generate(w http.ResponseWriter, r *http.Request) {
 				Secret string `json:"secret"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				helper.JSONError(w, http.StatusBadRequest, "Invalid JSON")
+				helper.JSONError(w, http.StatusBadRequest, "Invalid JSON", err)
 				return nil
 			}
 
 			cfg, ok := ac.Config[req.Token]
 			if !ok || cfg.Secret != req.Secret {
-				helper.JSONError(w, http.StatusUnauthorized, "Invalid credentials")
+				helper.JSONErrorSimple(w, http.StatusUnauthorized, "Invalid credentials")
 				return nil
 			}
 
-			jwtSecret := os.Getenv("JWT_APP_SECRET")
-			if jwtSecret == "" {
-				jwtSecret = "default_secret"
-			}
-			expire, _ := strconv.ParseInt(os.Getenv("JWT_EXPIRE"), 10, 64)
-			if expire == 0 {
-				expire = 900
-			}
-			renew, _ := strconv.ParseInt(os.Getenv("JWT_RENEW"), 10, 64)
-			if renew == 0 {
-				renew = 300
-			}
+			jwtSecret := config.AppConfig.JwtAppSecret
+			expire := config.AppConfig.JwtExpire
+			renew := config.AppConfig.JwtRenew
 
 			jwtMgr := ac.JWTManagerFactory(jwtSecret, cfg.Context, expire, renew)
 			token := jwtMgr.Generate(cfg.Context, "api", map[string]interface{}{})
@@ -105,6 +105,6 @@ func (ac *AuthController) Generate(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 	if err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, err)
+		helper.JSONError(w, http.StatusInternalServerError, "Auth error", err)
 	}
 }

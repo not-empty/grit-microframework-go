@@ -6,11 +6,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/middleware"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAuthMiddleware_ExemptPaths_BypassJwt(t *testing.T) {
+	_ = config.LoadConfig()
 	exemptPaths := []string{"/health", "/panic", "/auth/generate"}
 	for _, path := range exemptPaths {
 		t.Run(path, func(t *testing.T) {
@@ -33,6 +35,7 @@ func TestAuthMiddleware_ExemptPaths_BypassJwt(t *testing.T) {
 func TestAuthMiddleware_NoAuthModeTrue_BypassJwt(t *testing.T) {
 	os.Setenv("APP_NO_AUTH", "true")
 	defer os.Unsetenv("APP_NO_AUTH")
+	_ = config.LoadConfig()
 
 	called := false
 	req := httptest.NewRequest("GET", "/any-non-exempt", nil)
@@ -51,6 +54,7 @@ func TestAuthMiddleware_NoAuthModeTrue_BypassJwt(t *testing.T) {
 func TestAuthMiddleware_WithJwtMiddleware(t *testing.T) {
 	os.Setenv("APP_NO_AUTH", "false")
 	defer os.Unsetenv("APP_NO_AUTH")
+	_ = config.LoadConfig()
 
 	var jwtCalled, handlerCalled bool
 
