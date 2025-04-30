@@ -4,7 +4,7 @@ GRIT is a minimalist microservice framework built in pure Go. Designed to simpli
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### 1. Clone
 ```bash
@@ -39,6 +39,12 @@ DB_PORT=3306
 DB_MAX_CONN=100
 DB_MAX_IDLE=10
 
+DB_HOST_TEST=grit-mysql
+DB_NAME_TEST=grit
+DB_PASS_TEST=password
+DB_PORT_TEST=3306
+DB_USER_TEST=user
+
 JWT_APP_SECRET=secret   # JWT signing secret
 JWT_EXPIRE=900          # expiration seconds
 JWT_RENEW=600           # auto-renew threshold seconds
@@ -55,7 +61,7 @@ Run GRIT with:
 run go main.go
 ```
 
-## 🎯 Endpoints
+## Endpoints
 
 | Method | Path                      | Description                             |
 | ------ | ------------------------- | --------------------------------------- |
@@ -70,7 +76,7 @@ run go main.go
 
 ---
 
-## 🔐 Authentication & Authorization
+## Authentication & Authorization
 
 1. **Generate a JWT**
    ```bash
@@ -96,7 +102,7 @@ run go main.go
 
 ---
 
-## 📦 Request & Response Headers
+## Request & Response Headers
 
 | Header           | Description                                      |
 |------------------|--------------------------------------------------|
@@ -108,7 +114,7 @@ run go main.go
 
 ---
 
-## 🔄 Pagination with Cursor
+## Pagination with Cursor
 
 By default endpoints return up to **25** items and include an `X-Page-Cursor` header when more pages exist.
 
@@ -137,7 +143,7 @@ Once fewer than **25** records return, no `X-Page-Cursor` is emitted (end of lis
 
 ---
 
-## 🧮 Ordering & Field Selection
+## Ordering & Field Selection
 
 - **Order** by any column:
   `?order_by=name&order=desc`
@@ -153,7 +159,7 @@ curl -i GET "http://localhost:$APP_PORT/example/list?order_by=age&order=asc&fiel
 
 ---
 
-## 🧪 Filtering
+## Filtering
 
 Use `filter` params:
 ```
@@ -174,7 +180,7 @@ Supported operators:
 
 ---
 
-## 📂 Generators
+## Generators
 
 - **New Domain** (with DDL in `./cmd/sql/{name}.sql`):
   ```bash
@@ -200,9 +206,43 @@ Generated files:
 
 > Generated code for new routes will counts toward coverage—tests since they are new logic.
 
+## Validation
+
+You can add validation in fields including the validation statement in models or in the fields comments in the DDL file before generating the domain:
+
+Either way, you need to use the validate statement from https://github.com/go-playground/validator and its options.
+
+> You can add or change in the model just including or editing the validate statement and the choosed options on the selected fields:
+```golang
+type Example struct {
+	ID        string           `json:"id"`
+	Name      string           `json:"name" validate:"required,min=5"`
+	Age       int              `json:"age" validate:"required,number,gt=0,lt=100"`
+	LastLogin *helper.JSONTime `json:"last_login"`
+	CreatedAt *time.Time       `json:"created_at"`
+	UpdatedAt *time.Time       `json:"updated_at"`
+	DeletedAt *time.Time       `json:"deleted_at"`
+}
+```
+
+> Or you can add a comment -- validate in the sql DDL inside the cmd/sql folder and regerate the model (recommended):
+```sql
+CREATE TABLE example (
+  `id` CHAR(26) NOT NULL,
+  `name` TEXT NOT NULL, -- validate: "min=5" -- sanitize-html
+  `age` INT DEFAULT 0, -- validate: "required,number,gt=0,lt=100"
+  `last_login` DATETIME DEFAULT NULL,
+  `created_at` DATETIME DEFAULT NULL,
+  `updated_at` DATETIME DEFAULT NULL,
+  `deleted_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_example_deleted_at` (`deleted_at`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
 ---
 
-## ✔️ Testing & Coverage
+## Testing & Coverage
 
 Run all tests with coverage:
 ```bash
@@ -212,5 +252,5 @@ See `./tests/coverage/coverage-unit.html` for details.
 
 ---
 
-For more examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
+For more request examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
 
