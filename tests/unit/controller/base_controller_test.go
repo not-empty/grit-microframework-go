@@ -3,12 +3,12 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-	"io"
-	"errors"
 
 	"github.com/not-empty/grit/app/controller"
 	"github.com/not-empty/grit/app/helper"
@@ -16,8 +16,8 @@ import (
 )
 
 type fakeModel struct {
-	ID    string `json:"id"`
-	Field string `json:"field" validate:"required"`
+	ID        string     `json:"id"`
+	Field     string     `json:"field" validate:"required"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
@@ -50,7 +50,6 @@ func (m *fakeModel) SetCreatedAt(t time.Time) {
 func (m *fakeModel) SetUpdatedAt(t time.Time) {
 	m.UpdatedAt = &t
 }
-
 
 func (m *fakeModel) Schema() map[string]string {
 	return map[string]string{"id": "string", "field": "string"}
@@ -113,7 +112,7 @@ func (fr *fakeRepository) GetDeleted(id interface{}, fields []string) (map[strin
 	return fr.getDeletedResult, fr.getDeletedError
 }
 
-func (fr *fakeRepository) ListActive(limit int , pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listActiveResult, fr.listActiveError
 }
 
@@ -126,6 +125,7 @@ func (fr *fakeRepository) BulkGet(ids []string, limit int, pageCursor *helper.Pa
 }
 
 type fakeULIDGenerator struct{}
+
 func (f *fakeULIDGenerator) IsValidFormat(ulidStr string) bool {
 	return true
 }
@@ -180,19 +180,19 @@ func (e *errorULIDGen) DecodeTime(timePart string) (int64, error) {
 
 func TestNewBaseController(t *testing.T) {
 	fr := &fakeRepository{}
-	
+
 	setPK := func(m *fakeModel, id string) {
 		m.ID = id
 	}
-	
+
 	prefix := "/fake"
-	
+
 	bc := controller.NewBaseController[*fakeModel](fr, prefix, setPK)
-	
+
 	require.NotNil(t, bc, "BaseController should not be nil")
 	require.Equal(t, fr, bc.Repo, "Repository should be set")
 	require.Equal(t, prefix, bc.Prefix, "Prefix should match the provided value")
-	
+
 	model := &fakeModel{}
 	bc.SetPK(model, "123")
 	require.Equal(t, "123", model.ID, "SetPK should set the model's ID")
@@ -208,7 +208,7 @@ func TestBaseController_Bulk(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 
 	payload := map[string]interface{}{
@@ -239,7 +239,7 @@ func TestBaseController_DeadDetail(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/dead_detail/1", nil)
 	rr := httptest.NewRecorder()
@@ -264,7 +264,7 @@ func TestBaseController_DeadList(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/dead_list", nil)
@@ -287,7 +287,7 @@ func TestBaseController_Delete(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 	req := httptest.NewRequest(http.MethodDelete, "/fake/delete/1", nil)
 	rr := httptest.NewRecorder()
@@ -306,7 +306,7 @@ func TestBaseController_Detail(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/detail/1", nil)
 	rr := httptest.NewRecorder()
@@ -330,7 +330,7 @@ func TestBaseController_Edit(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 	patchData := map[string]interface{}{
 		"field": "newValue",
@@ -364,7 +364,7 @@ func TestBaseController_List(t *testing.T) {
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:   fr,
 		Prefix: "/fake",
-		SetPK: func(m *fakeModel, id string) { m.ID = id },
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/list", nil)
@@ -390,9 +390,9 @@ func TestBaseController_Add(t *testing.T) {
 	}
 
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  setPK,
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   setPK,
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -468,15 +468,15 @@ func TestBaseController_Add_InvalidJSON(t *testing.T) {
 
 func TestBaseController_Add_InvalidPayload(t *testing.T) {
 	fr := &fakeRepository{}
-	
+
 	setPK := func(m *fakeModel, id string) {
 		m.ID = id
 	}
 
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  setPK,
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   setPK,
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -593,9 +593,9 @@ func TestBaseController_Bulk_MethodNotAllowed(t *testing.T) {
 func TestBaseController_Bulk_InvalidJSON(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -610,13 +610,12 @@ func TestBaseController_Bulk_InvalidJSON(t *testing.T) {
 	require.Contains(t, string(body), "Invalid or empty Ids list")
 }
 
-
 func TestBaseController_Bulk_EmptyIDs(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -636,9 +635,9 @@ func TestBaseController_Bulk_BulkGetError(t *testing.T) {
 		bulkGetError: errors.New("bulk error"),
 	}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -716,15 +715,15 @@ func TestDeadDetail_GetDeletedError(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "Fields error")
+	require.Contains(t, string(body), "Detail error")
 }
 
 func TestBaseController_DeadList_MethodNotAllowed(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:   fr,
-		Prefix: "/fake",
-		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
 		ULIDGen: &fakeULIDGenerator{},
 	}
 
@@ -842,7 +841,7 @@ func TestBaseController_Detail_MethodNotAllowed(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/detail/1", nil)
 	rr := httptest.NewRecorder()
-	
+
 	bc.Detail(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
@@ -861,7 +860,7 @@ func TestBaseController_Detail_MissingId(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/detail/", nil)
 	rr := httptest.NewRecorder()
-	
+
 	bc.Detail(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
@@ -882,7 +881,7 @@ func TestBaseController_Detail_GetError(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/detail/1", nil)
 	rr := httptest.NewRecorder()
-	
+
 	bc.Detail(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
@@ -902,7 +901,7 @@ func TestBaseController_Edit_MethodNotAllowed(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/edit/1", nil)
 	rr := httptest.NewRecorder()
-	
+
 	bc.Edit(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
@@ -922,7 +921,7 @@ func TestBaseController_Edit_MissingId(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/", bytes.NewBufferString(`{"field": "newValue"}`))
 	rr := httptest.NewRecorder()
-	
+
 	bc.Edit(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
@@ -942,7 +941,7 @@ func TestBaseController_Edit_InvalidData(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString("{"))
 	rr := httptest.NewRecorder()
-	
+
 	bc.Edit(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
@@ -965,7 +964,7 @@ func TestBaseController_Edit_GetError(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString(`{"field": "newValue"}`))
 	rr := httptest.NewRecorder()
-	
+
 	bc.Edit(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
@@ -977,7 +976,7 @@ func TestBaseController_Edit_GetError(t *testing.T) {
 func TestBaseController_Edit_UpdateError(t *testing.T) {
 	fr := &fakeRepository{
 		updateFieldsError: errors.New("update error"),
-		getResult: map[string]any{"id": "1", "field": "oldValue"},
+		getResult:         map[string]any{"id": "1", "field": "oldValue"},
 	}
 	bc := &controller.BaseController[*fakeModel]{
 		Repo:    fr,
@@ -992,7 +991,7 @@ func TestBaseController_Edit_UpdateError(t *testing.T) {
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBuffer(patchBytes))
 	rr := httptest.NewRecorder()
-	
+
 	bc.Edit(rr, req)
 	res := rr.Result()
 	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
@@ -1021,7 +1020,6 @@ func TestBaseController_List_MethodNotAllowed(t *testing.T) {
 	require.Contains(t, string(body), "Method not allowed")
 }
 
-
 func TestBaseController_List_ListError(t *testing.T) {
 	fr := &fakeRepository{
 		listActiveError: errors.New("list error"),
@@ -1045,68 +1043,68 @@ func TestBaseController_List_ListError(t *testing.T) {
 }
 
 func TestBaseController_List_InvalidPageCursor(t *testing.T) {
-    fr := &fakeRepository{}
-    bc := &controller.BaseController[*fakeModel]{
-        Repo:    fr,
-        Prefix:  "/fake",
-        SetPK:   func(m *fakeModel, id string) { m.ID = id },
-        ULIDGen: &fakeULIDGenerator{},
-    }
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
 
-    req := httptest.NewRequest(http.MethodGet, "/fake/list?page_cursor=not-base64!", nil)
-    rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/fake/list?page_cursor=not-base64!", nil)
+	rr := httptest.NewRecorder()
 
-    bc.List(rr, req)
+	bc.List(rr, req)
 
-    res := rr.Result()
-    require.Equal(t, http.StatusBadRequest, res.StatusCode)
-    body, err := io.ReadAll(res.Body)
-    require.NoError(t, err)
-    require.Contains(t, string(body), "Invalid Page Cursor")
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid Page Cursor")
 }
 
 func TestBaseController_DeadList_InvalidPageCursor(t *testing.T) {
-    fr := &fakeRepository{}
-    bc := &controller.BaseController[*fakeModel]{
-        Repo:    fr,
-        Prefix:  "/fake",
-        SetPK:   func(m *fakeModel, id string) { m.ID = id },
-        ULIDGen: &fakeULIDGenerator{},
-    }
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
 
-    req := httptest.NewRequest(http.MethodGet, "/fake/dead_list?page_cursor=!!!", nil)
-    rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/fake/dead_list?page_cursor=!!!", nil)
+	rr := httptest.NewRecorder()
 
-    bc.DeadList(rr, req)
+	bc.DeadList(rr, req)
 
-    res := rr.Result()
-    require.Equal(t, http.StatusBadRequest, res.StatusCode)
-    body, err := io.ReadAll(res.Body)
-    require.NoError(t, err)
-    require.Contains(t, string(body), "Invalid Page Cursor")
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid Page Cursor")
 }
 
 func TestBaseController_Bulk_InvalidPageCursor(t *testing.T) {
-    fr := &fakeRepository{
-        bulkGetResult: []map[string]any{{"id": "1", "field": "foo"}},
-    }
-    bc := &controller.BaseController[*fakeModel]{
-        Repo:    fr,
-        Prefix:  "/fake",
-        SetPK:   func(m *fakeModel, id string) { m.ID = id },
-        ULIDGen: &fakeULIDGenerator{},
-    }
+	fr := &fakeRepository{
+		bulkGetResult: []map[string]any{{"id": "1", "field": "foo"}},
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
 
-    payload := map[string][]string{"ids": {"1"}}
-    b, _ := json.Marshal(payload)
-    req := httptest.NewRequest(http.MethodPost, "/fake/bulk?page_cursor=xxx!", bytes.NewBuffer(b))
-    rr := httptest.NewRecorder()
+	payload := map[string][]string{"ids": {"1"}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk?page_cursor=xxx!", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
 
-    bc.Bulk(rr, req)
+	bc.Bulk(rr, req)
 
-    res := rr.Result()
-    require.Equal(t, http.StatusBadRequest, res.StatusCode)
-    body, err := io.ReadAll(res.Body)
-    require.NoError(t, err)
-    require.Contains(t, string(body), "Invalid Page Cursor")
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Invalid Page Cursor")
 }
