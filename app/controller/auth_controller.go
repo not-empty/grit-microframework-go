@@ -41,7 +41,7 @@ func NewAuthController(configPath string) *AuthController {
 }
 
 func (ac *AuthController) LoadTokenConfig() {
-	if ac.Config != nil && len(ac.Config) > 0 {
+	if len(ac.Config) > 0 {
 		return
 	}
 

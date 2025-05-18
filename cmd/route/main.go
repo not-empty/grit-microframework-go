@@ -41,8 +41,8 @@ func main() {
 		RouteLower: routeLower,
 	}
 
-	controllerStubPath := filepath.Join("stubs", "controller.stub")
-	routerStubPath := filepath.Join("stubs", "router.stub")
+	controllerStubPath := filepath.Join("../stubs", "controller.stub")
+	routerStubPath := filepath.Join("../stubs", "router.stub")
 
 	controllerStubBytes, err := os.ReadFile(controllerStubPath)
 	if err != nil {
@@ -62,8 +62,8 @@ func main() {
 		log.Fatalf("Error parsing router stub: %v", err)
 	}
 
-	controllerOutPath := filepath.Join("..", "app", "controller", routeLower+"_controller.go")
-	routerOutPath := filepath.Join("..", "app", "router", "routes", routeLower+"_router.go")
+	controllerOutPath := filepath.Join("../..", "app", "controller", routeLower+"_controller.go")
+	routerOutPath := filepath.Join("../..", "app", "router", "routes", routeLower+"_router.go")
 
 	controllerFile, err := os.Create(controllerOutPath)
 	if err != nil {

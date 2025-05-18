@@ -1,0 +1,510 @@
+{
+	"info": {
+		"_postman_id": "fa9f790b-c052-46e6-99e4-956f3569723d",
+		"name": "Grit",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39880856"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/health",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Auth",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"{{TOKEN}}\",\n    \"secret\": \"{{SECRET}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/auth/generate",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"auth",
+								"generate"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Example",
+			"item": [
+				{
+					"name": "Add",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"testing\",\n    \"age\": 30\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/add",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Edit",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"testing\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/edit/01JVJ890TBFBK5DZ7S19W4PYGR",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"edit",
+								"01JVJ890TBFBK5DZ7S19W4PYGR"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ids\": [\n        \"01JVJ890TBFBK5DZ7S19W4PYGR\",\n        \"01JVJ88ZXY7NTYCGMSX159DJPT\",\n        \"01JVJ88YSXF7BFK26AEJQVZ37B\"\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/bulk",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"bulk"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/list",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List with cursor",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/list?page_cursor=eyJsYXN0X2lkIjoiMDFKVko4OFdSTTUyTVdFUDhHMkFXNERaN1MiLCJsYXN0X3ZhbHVlIjoiMDFKVko4OFdSTTUyTVdFUDhHMkFXNERaN1MifQ",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"list"
+							],
+							"query": [
+								{
+									"key": "page_cursor",
+									"value": "eyJsYXN0X2lkIjoiMDFKVko4OFdSTTUyTVdFUDhHMkFXNERaN1MiLCJsYXN0X3ZhbHVlIjoiMDFKVko4OFdSTTUyTVdFUDhHMkFXNERaN1MifQ"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List with params",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/list?fields=id,name&order_by=name&order=asc",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"list"
+							],
+							"query": [
+								{
+									"key": "fields",
+									"value": "id,name"
+								},
+								{
+									"key": "order_by",
+									"value": "name"
+								},
+								{
+									"key": "order",
+									"value": "asc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List with filter",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/list?filter=age:eql:30&filter=name:lik:test",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"list"
+							],
+							"query": [
+								{
+									"key": "filter",
+									"value": "age:eql:30"
+								},
+								{
+									"key": "filter",
+									"value": "name:lik:test"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Detail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/detail/01JVJ890TBFBK5DZ7S19W4PYGR",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"detail",
+								"01JVJ890TBFBK5DZ7S19W4PYGR"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/delete/01JVJ890TBFBK5DZ7S19W4PYGR",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"delete",
+								"01JVJ890TBFBK5DZ7S19W4PYGR"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Dead List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/dead_list",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"dead_list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Dead Detail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/dead_detail/01JVJ890TBFBK5DZ7S19W4PYGR",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"dead_detail",
+								"01JVJ890TBFBK5DZ7S19W4PYGR"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"pm.sendRequest({",
+							"    url: 'http://' + pm.variables.get('HOST') + ':' + pm.variables.get('PORT') + '/auth/generate',",
+							"    method: 'POST',",
+							"    body: {",
+							"        mode: 'raw',",
+							"        raw: JSON.stringify({",
+							"            \"token\": pm.variables.get('TOKEN'),",
+							"            \"secret\": pm.variables.get('SECRET')",
+							"        })",
+							"    }",
+							"}, function (_, response) {",
+							"    pm.environment.set('X-TOKEN', response.headers.get('X-Token'))",
+							"})",
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		}
+	]
+}

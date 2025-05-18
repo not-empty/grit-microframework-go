@@ -715,7 +715,7 @@ func TestDeadDetail_GetDeletedError(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "Fields error")
+	require.Contains(t, string(body), "Detail error")
 }
 
 func TestBaseController_DeadList_MethodNotAllowed(t *testing.T) {

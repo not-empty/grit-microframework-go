@@ -7,23 +7,29 @@ GRIT is a minimalist microservice framework built in pure Go. Designed to simpli
 ## Quickstart
 
 ### 1. Clone
+
 ```bash
 git clone https://github.com/not-empty/grit.git
 ```
 
 ### 2. Docker Compose
+
 Bring up the service and its MySQL dependency:
+
 ```bash
 docker-compose up -d
 ```
 
 Enter the running container:
+
 ```bash
 docker exec -it grit sh
 ```
 
 ### 3. Environment
+
 Copy `.env.example` to `.env` and adjust:
+
 ```env
 APP_ENV=local           # expose errors in response when "local"
 APP_LOG=true            # enable HTTP access logs
@@ -54,38 +60,42 @@ Also copy `./config/tokens.json.example` → `./config/tokens.json` to configure
 
 ---
 
-
 ## Run the API
+
 Run GRIT with:
+
 ```bash
 run go main.go
 ```
 
 ## Endpoints
 
-| Method | Path                      | Description                             |
-| ------ | ------------------------- | --------------------------------------- |
-| POST   | `/example/add`            | Create a new record                    |
-| POST   | `/example/bulk`           | Fetch specific records by IDs          |
-| GET    | `/example/dead_detail/{id}` | Get a deleted record by ID           |
-| GET    | `/example/dead_list`      | List deleted records (paginated)       |
-| DELETE | `/example/delete/{id}`    | Soft-delete a record by ID             |
-| GET    | `/example/detail/{id}`    | Get an active record by ID             |
-| PATCH  | `/example/edit/{id}`      | Update specific fields                 |
-| GET    | `/example/list`           | List active records (paginated)        |
+| Method | Path                        | Description                      |
+| ------ | --------------------------- | -------------------------------- |
+| POST   | `/example/add`              | Create a new record              |
+| POST   | `/example/bulk`             | Fetch specific records by IDs    |
+| GET    | `/example/dead_detail/{id}` | Get a deleted record by ID       |
+| GET    | `/example/dead_list`        | List deleted records (paginated) |
+| DELETE | `/example/delete/{id}`      | Soft-delete a record by ID       |
+| GET    | `/example/detail/{id}`      | Get an active record by ID       |
+| PATCH  | `/example/edit/{id}`        | Update specific fields           |
+| GET    | `/example/list`             | List active records (paginated)  |
 
 ---
 
 ## Authentication & Authorization
 
 1. **Generate a JWT**
+
    ```bash
    curl -i -X POST http://localhost:$APP_PORT/auth/generate \
      -H "Content-Type: application/json" \
      -H "Context: <your-context>" \
      -d '{"token":"<token>","secret":"<secret>"}'
    ```
+
    On success you get HTTP 204 with headers:
+
    - `X-Token`: JWT
    - `X-Expires`: expiration timestamp
 
@@ -104,13 +114,13 @@ run go main.go
 
 ## Request & Response Headers
 
-| Header           | Description                                      |
-|------------------|--------------------------------------------------|
-| `X-Request-ID`   | Unique ULID for the request                      |
-| `X-Profile`      | Profiling timer (seconds)                        |
-| `X-Token`        | JWT token (on auth or renew)                     |
-| `X-Expires`      | JWT expiration timestamp                         |
-| `X-Page-Cursor`  | Cursor for next page (string)                    |
+| Header          | Description                   |
+| --------------- | ----------------------------- |
+| `X-Request-ID`  | Unique ULID for the request   |
+| `X-Profile`     | Profiling timer (seconds)     |
+| `X-Token`       | JWT token (on auth or renew)  |
+| `X-Expires`     | JWT expiration timestamp      |
+| `X-Page-Cursor` | Cursor for next page (string) |
 
 ---
 
@@ -119,10 +129,12 @@ run go main.go
 By default endpoints return up to **25** items and include an `X-Page-Cursor` header when more pages exist.
 
 1. **First page** (no cursor):
+
    ```bash
    curl -i GET "http://localhost:$APP_PORT/example/list" \
      -H "Authorization: Bearer <JWT>"
    ```
+
    ```http
    HTTP/1.1 200 OK
    X-Page-Cursor: eyJsYXN0X2lkIjo...   # opaque cursor
@@ -152,6 +164,7 @@ Once fewer than **25** records return, no `X-Page-Cursor` is emitted (end of lis
   `?fields=id,name,created_at`
 
 Example:
+
 ```bash
 curl -i GET "http://localhost:$APP_PORT/example/list?order_by=age&order=asc&fields=id,name" \
   -H "Authorization: Bearer <JWT>"
@@ -162,21 +175,24 @@ curl -i GET "http://localhost:$APP_PORT/example/list?order_by=age&order=asc&fiel
 ## Filtering
 
 Use `filter` params:
+
 ```
 ?filter=age:eql:30&filter=name:lik:John
 ```
+
 Supported operators:
-- `eql`  → `=`   
-- `neq` → `!=`  
-- `lik` → `LIKE` (contains)  
-- `gt`  → `>`   
-- `lt`  → `<`   
-- `gte` → `>=`  
-- `lte` → `<=`  
-- `btw` → `BETWEEN` (value1,value2)  
+
+- `eql` → `=`
+- `neq` → `!=`
+- `lik` → `LIKE` (contains)
+- `gt` → `>`
+- `lt` → `<`
+- `gte` → `>=`
+- `lte` → `<=`
+- `btw` → `BETWEEN` (value1,value2)
 - `nul` → `IS NULL`
-- `nnu` → `IS NOT NULL`  
-- `in`  → `IN` (comma list)  
+- `nnu` → `IS NOT NULL`
+- `in` → `IN` (comma list)
 
 ---
 
@@ -184,24 +200,26 @@ Supported operators:
 
 - **New Domain** (with DDL in `./cmd/sql/{name}.sql`):
   ```bash
-  cd cmd
-  go run domain.go -domain=name
+  cd cmd/domain
+  go run main.go -domain=name
   ```
 
 Generated files:
-- `app/repository/models/{name}_model.go`  
+
+- `app/repository/models/{name}_model.go`
 - `app/router/domains/{name}_domain.go`
 
 > Generated code for new domains are test free since they are abstract of the basic implementations.
 
 - **Generate Route**:
   ```bash
-  cd cmd
-  go run route.go -route=name
+  cd cmd/route
+  go run main.go -route=name
   ```
 
 Generated files:
-- `app/controller/{name}_controller.go`         
+
+- `app/controller/{name}_controller.go`
 - `app/router/routes/{name}_router.go`
 
 > Generated code for new routes will counts toward coverage—tests since they are new logic.
@@ -213,6 +231,7 @@ You can add validation in fields including the validation statement in models or
 Either way, you need to use the validate statement from https://github.com/go-playground/validator and its options.
 
 > You can add or change in the model just including or editing the validate statement and the choosed options on the selected fields:
+
 ```golang
 type Example struct {
 	ID        string           `json:"id"`
@@ -226,6 +245,7 @@ type Example struct {
 ```
 
 > Or you can add a comment -- validate in the sql DDL inside the cmd/sql folder and regerate the model (recommended):
+
 ```sql
 CREATE TABLE example (
   `id` CHAR(26) NOT NULL,
@@ -245,12 +265,15 @@ CREATE TABLE example (
 ## Testing & Coverage
 
 Run all tests with coverage:
+
 ```bash
 ./audit.sh
 ```
+
 See `./tests/coverage/coverage-unit.html` for details.
 
 ---
 
 For more request examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
 
+If you are using a REST API software like Insomnia or Postman you can import the `./ops/rest_environment.json` and `./ops/rest_collection.json` files.

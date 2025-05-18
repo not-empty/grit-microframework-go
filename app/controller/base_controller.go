@@ -112,7 +112,7 @@ func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) 
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	m, err := bc.Repo.GetDeleted(id, fields)
 	if err != nil {
-		helper.JSONError(w, http.StatusNotFound, "Fields error", err)
+		helper.JSONError(w, http.StatusNotFound, "Detail error", err)
 		return
 	}
 
