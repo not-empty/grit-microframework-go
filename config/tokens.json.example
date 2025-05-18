@@ -1,6 +1,10 @@
 {
-  "example": {
+  "adm": {
     "secret": "d22337700548a5aa91adbb353e8bcb9968e112c8b03c2077bb94228ec5954245fe7459a1bf39d4e3b9b90a8d60efd2a4c1875755d51ee74175d639579c026fb7",
+    "context": "general"
+  },
+  "user": {
+    "secret": "1ce04082b30bf285d3d50fc97767cc3e13a9aac2094c01d0394f9dcc4d0bb597c9cd78b00e985600bfe6525cf33b7fd37c98e2e53540e10f0679b9db0be47ae4",
     "context": "general"
   }
 }

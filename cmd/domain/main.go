@@ -173,7 +173,7 @@ func main() {
 	domainLower := strings.ToLower(*domainPtr)
 	domainCap := SnakeToCamel(domainLower)
 
-	ddlPath := filepath.Join("sql", domainLower+".sql")
+	ddlPath := filepath.Join("../sql", domainLower+".sql")
 	ddlData, err := os.ReadFile(ddlPath)
 	if err != nil {
 		log.Fatalf("Error reading DDL file %s: %v", ddlPath, err)
@@ -199,8 +199,8 @@ func main() {
 		HasDateTime: HasDateTime,
 	}
 
-	modelStubPath := filepath.Join("stubs", "model.stub")
-	routesStubPath := filepath.Join("stubs", "domain.stub")
+	modelStubPath := filepath.Join("../stubs", "model.stub")
+	routesStubPath := filepath.Join("../stubs", "domain.stub")
 
 	modelStubBytes, err := os.ReadFile(modelStubPath)
 	if err != nil {
@@ -220,8 +220,8 @@ func main() {
 		log.Fatalf("Error parsing domain stub: %v", err)
 	}
 
-	modelOutPath := filepath.Join("..", "app", "repository", "models", domainLower+"_model.go")
-	routesOutPath := filepath.Join("..", "app", "router", "domains", domainLower+"_domain.go")
+	modelOutPath := filepath.Join("../..", "app", "repository", "models", domainLower+"_model.go")
+	routesOutPath := filepath.Join("../..", "app", "router", "domains", domainLower+"_domain.go")
 
 	modelFile, err := os.Create(modelOutPath)
 	if err != nil {

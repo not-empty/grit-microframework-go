@@ -11,7 +11,7 @@ echo "✅ Running unit tests with coverage..."
 echo ""
 
 # Step 1: Build package list and exclude unwanted ones
-PACKAGES=$(go list -buildvcs=false ./... | grep -vE '/vendor/|tests/|/cmd$|/app/context$|/app/repository/models$|/app/router/domains$|/app/router/routes')
+PACKAGES=$(go list -buildvcs=false ./... | grep -vE '/vendor/|tests/|/cmd/domain$|/cmd/route$|/app/context$|/app/repository/models$|/app/router/domains$|/app/router/routes')
 COVERPKG=$(echo "$PACKAGES" | paste -sd, -)
 
 # Step 2: Run tests
@@ -76,3 +76,7 @@ echo "⚡ Skipped: $total_skipped"
 echo ""
 echo "View detailed HTML coverage report:"
 echo "./tests/coverage/coverage-unit.html"
+
+echo ""
+echo "✅ Formatting code with gofmt"
+gofmt -w .

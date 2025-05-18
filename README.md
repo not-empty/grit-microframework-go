@@ -200,8 +200,8 @@ Supported operators:
 
 - **New Domain** (with DDL in `./cmd/sql/{name}.sql`):
   ```bash
-  cd cmd
-  go run domain.go -domain=name
+  cd cmd/domain
+  go run main.go -domain=name
   ```
 
 Generated files:
@@ -213,8 +213,8 @@ Generated files:
 
 - **Generate Route**:
   ```bash
-  cd cmd/router
-  go run route.go -route=name
+  cd cmd/route
+  go run main.go -route=name
   ```
 
 Generated files:
@@ -275,3 +275,5 @@ See `./tests/coverage/coverage-unit.html` for details.
 ---
 
 For more request examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
+
+If you are using a REST API software like Insomnia or Postman you can import the `./ops/rest_environment.json` and `./ops/rest_collection.json` files.
