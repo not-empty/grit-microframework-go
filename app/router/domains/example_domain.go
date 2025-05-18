@@ -5,8 +5,8 @@ import (
 
 	"github.com/not-empty/grit/app/repository"
 	"github.com/not-empty/grit/app/repository/models"
-	"github.com/not-empty/grit/app/router/routes"
 	"github.com/not-empty/grit/app/router/registry"
+	"github.com/not-empty/grit/app/router/routes"
 )
 
 func init() {

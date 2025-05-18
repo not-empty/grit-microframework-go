@@ -11,17 +11,17 @@ import (
 )
 
 type BaseController[T repository.BaseModel] struct {
-	Repo repository.RepositoryInterface[T]
-	Prefix string
-	SetPK  func(m T, id string)
+	Repo    repository.RepositoryInterface[T]
+	Prefix  string
+	SetPK   func(m T, id string)
 	ULIDGen ulid.Generator
 }
 
 func NewBaseController[T repository.BaseModel](repo repository.RepositoryInterface[T], prefix string, setPK func(m T, id string)) *BaseController[T] {
 	bc := &BaseController[T]{
-		Repo:       repo,
-		Prefix:     prefix,
-		SetPK:      setPK,
+		Repo:    repo,
+		Prefix:  prefix,
+		SetPK:   setPK,
 		ULIDGen: ulid.NewDefaultGenerator(),
 	}
 	return bc
@@ -133,7 +133,7 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
-	
+
 	list, err := bc.Repo.ListDeleted(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error", err)

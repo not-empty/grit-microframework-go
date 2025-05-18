@@ -76,3 +76,7 @@ echo "⚡ Skipped: $total_skipped"
 echo ""
 echo "View detailed HTML coverage report:"
 echo "./tests/coverage/coverage-unit.html"
+
+echo ""
+echo "✅ Formatting code with gofmt"
+gofmt -w .
