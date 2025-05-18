@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -175,7 +174,7 @@ func main() {
 	domainCap := SnakeToCamel(domainLower)
 
 	ddlPath := filepath.Join("sql", domainLower+".sql")
-	ddlData, err := ioutil.ReadFile(ddlPath)
+	ddlData, err := os.ReadFile(ddlPath)
 	if err != nil {
 		log.Fatalf("Error reading DDL file %s: %v", ddlPath, err)
 	}
@@ -203,11 +202,11 @@ func main() {
 	modelStubPath := filepath.Join("stubs", "model.stub")
 	routesStubPath := filepath.Join("stubs", "domain.stub")
 
-	modelStubBytes, err := ioutil.ReadFile(modelStubPath)
+	modelStubBytes, err := os.ReadFile(modelStubPath)
 	if err != nil {
 		log.Fatalf("Error reading model stub: %v", err)
 	}
-	routesStubBytes, err := ioutil.ReadFile(routesStubPath)
+	routesStubBytes, err := os.ReadFile(routesStubPath)
 	if err != nil {
 		log.Fatalf("Error reading domain stub: %v", err)
 	}
