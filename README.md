@@ -80,6 +80,7 @@ run go main.go
 | GET    | `/example/detail/{id}`      | Get an active record by ID       |
 | PATCH  | `/example/edit/{id}`        | Update specific fields           |
 | GET    | `/example/list`             | List active records (paginated)  |
+| GET    | `/example/list_one`         | List one record based on params  |
 
 ---
 
