@@ -343,6 +343,37 @@
 					"response": []
 				},
 				{
+					"name": "List One",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/list_one",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"list_one"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Detail",
 					"request": {
 						"method": "GET",

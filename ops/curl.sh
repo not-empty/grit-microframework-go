@@ -159,7 +159,17 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 10. Bulk fetch by ID
+# # 10. List one active data
+echo "📥 Listing one example..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list_one?filter=age:eql:22" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Accept: application/json" | jq
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
+
+# 11. Bulk fetch by ID
 echo "📦 Bulk fetching data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \

@@ -151,4 +151,15 @@ func TestExampleEndpoints(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, data)
 	})
+
+	t.Run("ListOne - List one", func(t *testing.T) {
+		resp, err := http.Get(baseURL + "/example/list_one")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var data map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&data)
+		assert.NoError(t, err)
+		assert.Equal(t, "Example Name", data["name"])
+	})
 }

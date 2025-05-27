@@ -59,7 +59,7 @@ func (bc *BaseController[T]) Add(w http.ResponseWriter, r *http.Request) {
 		u.SetUpdatedAt(now)
 	}
 
-	if err := bc.Repo.Insert(m); err != nil {
+	if err := bc.Repo.Add(m); err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "Insert error", err)
 		return
 	}
@@ -89,7 +89,7 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.BulkGet(input.IDs, limit, pageCursor, orderBy, order, fields)
+	list, err := bc.Repo.Bulk(input.IDs, limit, pageCursor, orderBy, order, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "Bulk error", err)
 		return
@@ -110,7 +110,7 @@ func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) 
 	}
 
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	m, err := bc.Repo.GetDeleted(id, fields)
+	m, err := bc.Repo.DeadDetail(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Detail error", err)
 		return
@@ -134,7 +134,7 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.ListDeleted(limit, pageCursor, orderBy, order, fields, filters)
+	list, err := bc.Repo.DeadList(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error", err)
 		return
@@ -179,7 +179,7 @@ func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	m, err := bc.Repo.Get(id, fields)
+	m, err := bc.Repo.Detail(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Detail error", err)
 		return
@@ -206,7 +206,7 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fetched, err := bc.Repo.Get(id, bc.Repo.New().Columns())
+	fetched, err := bc.Repo.Detail(id, bc.Repo.New().Columns())
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Not found", err)
 		return
@@ -236,7 +236,7 @@ func (bc *BaseController[T]) Edit(w http.ResponseWriter, r *http.Request) {
 	m := bc.Repo.New()
 	bc.SetPK(m, id)
 
-	if err := bc.Repo.UpdateFields(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
+	if err := bc.Repo.Edit(m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue(), updateCols, updateVals); err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "Edit error", err)
 		return
 	}
@@ -259,11 +259,30 @@ func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.ListActive(limit, pageCursor, orderBy, order, fields, filters)
+	list, err := bc.Repo.List(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List error", err)
 		return
 	}
 
 	helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
+}
+
+func (bc *BaseController[T]) ListOne(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helper.JSONErrorSimple(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	orderBy, order := helper.GetOrderParams(r, "id")
+	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
+
+	m, err := bc.Repo.ListOne(orderBy, order, fields, filters)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "List one error", err)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
 }

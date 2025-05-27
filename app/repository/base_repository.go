@@ -35,14 +35,15 @@ type BaseModel interface {
 
 type RepositoryInterface[T BaseModel] interface {
 	New() T
-	Insert(m T) error
-	UpdateFields(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error
+	Add(m T) error
+	Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error)
+	DeadDetail(id interface{}, fields []string) (map[string]any, error)
+	DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
 	Delete(m T) error
-	Get(id interface{}, fields []string) (map[string]any, error)
-	GetDeleted(id interface{}, fields []string) (map[string]any, error)
-	ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
-	ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
-	BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error)
+	Detail(id interface{}, fields []string) (map[string]any, error)
+	Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error
+	List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
+	ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error)
 }
 
 type Repository[T BaseModel] struct {
@@ -61,39 +62,47 @@ func (r *Repository[T]) New() T {
 	return r.newFunc()
 }
 
-func (r *Repository[T]) Insert(m T) error {
-	return insertModel(r.DB, m)
+func (r *Repository[T]) Add(m T) error {
+	return addRecord(r.DB, m)
 }
 
-func (r *Repository[T]) UpdateFields(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
-	return updateModelFields(r.DB, table, pk, pkVal, cols, vals)
+func (r *Repository[T]) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+	m := r.New()
+	return bulkRecords(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, pageCursor, orderBy, order)
+}
+
+func (r *Repository[T]) DeadDetail(id interface{}, fields []string) (map[string]any, error) {
+	m := r.New()
+	return getRecord(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, true)
+}
+
+func (r *Repository[T]) DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	m := r.New()
+	return listRecords(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, true)
 }
 
 func (r *Repository[T]) Delete(m T) error {
-	return softDeleteModel(r.DB, m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue())
+	return deleteRecord(r.DB, m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue())
 }
 
-func (r *Repository[T]) Get(id interface{}, fields []string) (map[string]any, error) {
+func (r *Repository[T]) Detail(id interface{}, fields []string) (map[string]any, error) {
 	m := r.New()
-	return getModel(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, false)
+	return getRecord(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, false)
 }
 
-func (r *Repository[T]) GetDeleted(id interface{}, fields []string) (map[string]any, error) {
-	m := r.New()
-	return getModel(r.DB, id, m.Schema(), m.TableName(), m.PrimaryKey(), fields, true)
+func (r *Repository[T]) Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+	return editRecord(r.DB, table, pk, pkVal, cols, vals)
 }
 
-func (r *Repository[T]) ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (r *Repository[T]) List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
-	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, false)
+	return listRecords(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, false)
 }
 
-func (r *Repository[T]) ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
-	m := r.New()
-	return listModels(r.DB, m.Schema(), m.TableName(), fields, limit, pageCursor, orderBy, order, filters, true)
-}
-
-func (r *Repository[T]) BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
-	m := r.New()
-	return bulkGetModels(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, pageCursor, orderBy, order)
+func (r *Repository[T]) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+	results, err := r.List(1, nil, orderBy, order, fields, filters)
+	if len(results) == 0 {
+		return make(map[string]any), err
+	}
+	return results[0], err
 }

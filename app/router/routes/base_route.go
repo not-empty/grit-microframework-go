@@ -25,4 +25,5 @@ func (br *BaseRoutes[T]) RegisterRoutes() {
 	http.Handle(br.Prefix+"/detail/", middleware.ClosedChain(http.HandlerFunc(ctrl.Detail)))
 	http.Handle(br.Prefix+"/edit/", middleware.ClosedChain(http.HandlerFunc(ctrl.Edit)))
 	http.Handle(br.Prefix+"/list", middleware.ClosedChain(http.HandlerFunc(ctrl.List)))
+	http.Handle(br.Prefix+"/list_one", middleware.ClosedChain(http.HandlerFunc(ctrl.ListOne)))
 }

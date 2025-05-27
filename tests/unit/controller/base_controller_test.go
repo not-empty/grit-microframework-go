@@ -81,18 +81,21 @@ type fakeRepository struct {
 
 	bulkGetResult []map[string]any
 	bulkGetError  error
+
+	listOneResult map[string]any
+	listOneError  error
 }
 
 func (fr *fakeRepository) New() *fakeModel {
 	return &fakeModel{}
 }
 
-func (fr *fakeRepository) Insert(m *fakeModel) error {
+func (fr *fakeRepository) Add(m *fakeModel) error {
 	fr.insertedModel = m
 	return fr.insertedError
 }
 
-func (fr *fakeRepository) UpdateFields(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+func (fr *fakeRepository) Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
 	fr.updateFieldsCalled = true
 	fr.updateFieldsCols = cols
 	fr.updateFieldsVals = vals
@@ -104,24 +107,28 @@ func (fr *fakeRepository) Delete(m *fakeModel) error {
 	return fr.deleteError
 }
 
-func (fr *fakeRepository) Get(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) Detail(id interface{}, fields []string) (map[string]any, error) {
 	return fr.getResult, fr.getError
 }
 
-func (fr *fakeRepository) GetDeleted(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) DeadDetail(id interface{}, fields []string) (map[string]any, error) {
 	return fr.getDeletedResult, fr.getDeletedError
 }
 
-func (fr *fakeRepository) ListActive(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listActiveResult, fr.listActiveError
 }
 
-func (fr *fakeRepository) ListDeleted(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listDeletedResult, fr.listDeletedError
 }
 
-func (fr *fakeRepository) BulkGet(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
 	return fr.bulkGetResult, fr.bulkGetError
+}
+
+func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+	return fr.listOneResult, fr.listOneError
 }
 
 type fakeULIDGenerator struct{}
@@ -1107,4 +1114,85 @@ func TestBaseController_Bulk_InvalidPageCursor(t *testing.T) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), "Invalid Page Cursor")
+}
+
+func TestBaseController_ListOne_Success(t *testing.T) {
+	fr := &fakeRepository{listOneResult: map[string]any{"id": "1", "field": "value1"}}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/list_one", nil)
+	rr := httptest.NewRecorder()
+
+	bc.ListOne(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	var resp map[string]any
+	err := json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	require.Equal(t, "value1", resp["field"])
+}
+
+func TestBaseController_ListOne_Empty(t *testing.T) {
+	fr := &fakeRepository{listOneResult: map[string]any{}}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/list_one", nil)
+	rr := httptest.NewRecorder()
+
+	bc.ListOne(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	body := rr.Body.String()
+	require.JSONEq(t, `{}`, body)
+}
+
+func TestBaseController_ListOne_Error(t *testing.T) {
+	errMsg := "fatal database error"
+	fr := &fakeRepository{listOneError: errors.New(errMsg)}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/list_one", nil)
+	rr := httptest.NewRecorder()
+
+	bc.ListOne(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+	body := rr.Body.String()
+	require.Contains(t, body, "List one error")
+}
+
+func TestBaseController_ListOne_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/list_one", nil)
+	rr := httptest.NewRecorder()
+
+	bc.ListOne(rr, req)
+
+	reqResult := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, reqResult.StatusCode)
+	require.Contains(t, rr.Body.String(), "Method not allowed")
 }
