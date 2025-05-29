@@ -70,17 +70,18 @@ run go main.go
 
 ## Endpoints
 
-| Method | Path                        | Description                      |
-| ------ | --------------------------- | -------------------------------- |
-| POST   | `/example/add`              | Create a new record              |
-| POST   | `/example/bulk`             | Fetch specific records by IDs    |
-| GET    | `/example/dead_detail/{id}` | Get a deleted record by ID       |
-| GET    | `/example/dead_list`        | List deleted records (paginated) |
-| DELETE | `/example/delete/{id}`      | Soft-delete a record by ID       |
-| GET    | `/example/detail/{id}`      | Get an active record by ID       |
-| PATCH  | `/example/edit/{id}`        | Update specific fields           |
-| GET    | `/example/list`             | List active records (paginated)  |
-| GET    | `/example/list_one`         | List one record based on params  |
+| Method | Path                        | Description                                |
+| ------ | --------------------------- | -------------------------------------------|
+| POST   | `/example/add`              | Create a new record                        |
+| POST   | `/example/bulk`             | Fetch specific records by IDs              |
+| GET    | `/example/dead_detail/{id}` | Get a deleted record by ID                 |
+| GET    | `/example/dead_list`        | List deleted records (paginated)           |
+| DELETE | `/example/delete/{id}`      | Soft-delete a record by ID                 |
+| GET    | `/example/detail/{id}`      | Get an active record by ID                 |
+| PATCH  | `/example/edit/{id}`        | Update specific fields                     |
+| GET    | `/example/list`             | List active records (paginated)            |
+| GET    | `/example/list_one`         | List one record based on params            |
+| POST   | `/example/select_raw`       | Execute a predefined raw SQL query safely  |
 
 ---
 
@@ -158,6 +159,8 @@ Once fewer than **25** records return, no `X-Page-Cursor` is emitted (end of lis
 
 ## Ordering & Field Selection
 
+Works on list and list_one endpoints
+
 - **Order** by any column:
   `?order_by=name&order=desc`
 
@@ -174,6 +177,8 @@ curl -i GET "http://localhost:$APP_PORT/example/list?order_by=age&order=asc&fiel
 ---
 
 ## Filtering
+
+Works on list and list_one endpoints
 
 Use `filter` params:
 
@@ -197,6 +202,62 @@ Supported operators:
 
 ---
 
+## Raw Selects
+
+Allows execution of pre-registered raw SQL queries with named parameters. Queries must be registered in your model.
+
+1 - Register queries in app/repository/models/<domain>_raw.go:
+```golang
+package models
+
+import "github.com/not-empty/grit/app/helper"
+
+func init() {
+    helper.RegisterRawQueries("example", map[string]string{
+        // key is query name, value is SQL template
+        "count_active": `
+          SELECT COUNT(1) AS total
+          FROM example
+          WHERE age = :age
+        `,
+    })
+}
+```
+
+2 - Request format:
+
+```bash
+POST /example/select_raw
+Content-Type: application/json
+
+{
+  "query": "count_active",
+  "params": {
+    "age" : 22
+  }
+}
+```
+
+3 - Response:
+
+[200 OK] with JSON array of rows (each row is an object)
+
+[400 Bad Request] if query is unknown, parameters mismatch, or contains forbidden terms
+
+[500 Internal Server Error] on execution errors
+
+4 - Limitations & rules:
+
+Allowed: only SELECT or WITH statements
+
+Denied substrings: ;, --, /*, */
+
+Denied keywords: drop, alter, truncate, delete, update, insert, create, merge, replace, grant, revoke, commit, rollback, savepoint, lock, unlock, exec, call, use, set, limit, offset, join
+
+All named parameters (e.g. :id) in the query must be provided in the params object, and no extra parameters are allowed.
+
+Maximum rows returned is 25 (hard-coded).
+
 ## Generators
 
 - **New Domain** (with DDL in `./cmd/sql/{name}.sql`):
@@ -208,6 +269,7 @@ Supported operators:
 Generated files:
 
 - `app/repository/models/{name}_model.go`
+- `app/repository/models/{name}_raw.go`
 - `app/router/domains/{name}_domain.go`
 
 > Generated code for new domains are test free since they are abstract of the basic implementations.

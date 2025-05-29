@@ -282,3 +282,196 @@ func TestMapKeys(t *testing.T) {
 	require.ElementsMatch(t, []string{"id", "email", "age"}, keys)
 	require.Len(t, keys, 3)
 }
+
+func TestSimpleScanRows_SingleRow_AllTypes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	now := time.Now().Truncate(time.Second)
+	rows := sqlmock.NewRows([]string{
+		"str",
+		"bytes",
+		"i",
+		"f",
+		"b",
+		"t",
+		"nul",
+	}).AddRow(
+		"hello",
+		[]byte("world"),
+		int64(42),
+		3.1415,
+		true,
+		now,
+		nil,
+	)
+	mock.ExpectQuery("SELECT").WillReturnRows(rows)
+
+	r, err := db.Query("SELECT")
+	require.NoError(t, err)
+	defer r.Close()
+
+	out, err := helper.SimpleScanRows(r)
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+
+	row := out[0]
+
+	require.IsType(t, "", row["str"])
+	require.Equal(t, "hello", row["str"])
+
+	require.IsType(t, "", row["bytes"])
+	require.Equal(t, "world", row["bytes"])
+
+	require.IsType(t, int64(0), row["i"])
+	require.Equal(t, int64(42), row["i"])
+
+	require.IsType(t, float64(0), row["f"])
+	require.Equal(t, 3.1415, row["f"])
+
+	require.IsType(t, bool(false), row["b"])
+	require.Equal(t, true, row["b"])
+
+	require.IsType(t, time.Time{}, row["t"])
+
+	require.Equal(t, now, row["t"])
+
+	require.Nil(t, row["nul"])
+}
+
+func TestSimpleScanRows_MultipleRows(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	rows := sqlmock.NewRows([]string{"name"}).
+		AddRow("alice").
+		AddRow("bob")
+	mock.ExpectQuery("SELECT").WillReturnRows(rows)
+
+	r, err := db.Query("SELECT")
+	require.NoError(t, err)
+	defer r.Close()
+
+	out, err := helper.SimpleScanRows(r)
+	require.NoError(t, err)
+	require.Len(t, out, 2)
+
+	require.Equal(t, "alice", out[0]["name"])
+	require.Equal(t, "bob", out[1]["name"])
+}
+
+type errScanRS struct {
+	called bool
+}
+
+func (r *errScanRS) Columns() ([]string, error) {
+	return []string{"foo"}, nil
+}
+
+func (r *errScanRS) ColumnTypes() ([]*sql.ColumnType, error) {
+	return nil, nil
+}
+
+func (r *errScanRS) Next() bool {
+	if !r.called {
+		r.called = true
+		return true
+	}
+	return false
+}
+
+func (r *errScanRS) Scan(dest ...any) error {
+	return fmt.Errorf("boom scan")
+}
+
+func (r *errScanRS) Err() error {
+	return nil
+}
+
+func TestSimpleScanRows_ScanError(t *testing.T) {
+	out, err := helper.SimpleScanRows(&errScanRS{})
+	require.Nil(t, out)
+	require.EqualError(t, err, "boom scan")
+}
+
+type errIteratorRS struct{}
+
+func (r *errIteratorRS) Columns() ([]string, error) {
+	return []string{"col"}, nil
+}
+
+func (r *errIteratorRS) ColumnTypes() ([]*sql.ColumnType, error) {
+	return nil, nil
+}
+
+func (r *errIteratorRS) Next() bool {
+	return false
+}
+
+func (r *errIteratorRS) Scan(dest ...any) error {
+	return nil
+}
+
+func (r *errIteratorRS) Err() error {
+	return errors.New("iteration failed")
+}
+
+func TestSimpleScanRows_IteratorError(t *testing.T) {
+	out, err := helper.SimpleScanRows(&errIteratorRS{})
+	require.Nil(t, out)
+	require.EqualError(t, err, "iteration failed")
+}
+
+func TestRowsAdapter_ColumnsAndColumnTypes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	rows := sqlmock.NewRows([]string{"id", "name"}).
+		AddRow("1", "Alice")
+	mock.ExpectQuery("SELECT 1").WillReturnRows(rows)
+
+	r, err := db.Query("SELECT 1")
+	require.NoError(t, err)
+	defer r.Close()
+
+	ra := helper.NewRowsAdapter(r)
+
+	cols, err := ra.Columns()
+	require.NoError(t, err)
+	require.Equal(t, []string{"id", "name"}, cols)
+
+	cts, err := ra.ColumnTypes()
+	require.NoError(t, err)
+	require.Len(t, cts, 2)
+	require.Equal(t, "id", cts[0].Name())
+	require.Equal(t, "name", cts[1].Name())
+}
+
+func TestRowsAdapter_NextScanErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	rows := sqlmock.NewRows([]string{"value"}).
+		AddRow(int64(42))
+	mock.ExpectQuery("SELECT 2").WillReturnRows(rows)
+
+	r, err := db.Query("SELECT 2")
+	require.NoError(t, err)
+	defer r.Close()
+
+	ra := helper.NewRowsAdapter(r)
+
+	require.True(t, ra.Next())
+
+	var v int64
+	require.NoError(t, ra.Scan(&v))
+	require.Equal(t, int64(42), v)
+
+	require.False(t, ra.Next())
+
+	require.NoError(t, ra.Err())
+}

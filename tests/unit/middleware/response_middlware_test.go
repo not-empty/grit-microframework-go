@@ -121,8 +121,8 @@ func TestResponseMiddleware_SetsPageCursorHeader(t *testing.T) {
 
 	pc, err := helper.DecodeCursor(cursor)
 	require.NoError(t, err)
-	require.Equal(t, "5", pc.LastID)
-	require.Equal(t, "5", pc.LastValue)
+	require.Equal(t, "25", pc.LastID)
+	require.Equal(t, "25", pc.LastValue)
 
 	req2 := httptest.NewRequest("GET", "/foo?order_by=value", bytes.NewReader(bodyBytes))
 	rr2 := httptest.NewRecorder()
@@ -134,6 +134,6 @@ func TestResponseMiddleware_SetsPageCursorHeader(t *testing.T) {
 
 	pc2, err := helper.DecodeCursor(cursor2)
 	require.NoError(t, err)
-	require.Equal(t, "5", pc2.LastID)
-	require.Equal(t, "value5", pc2.LastValue)
+	require.Equal(t, "25", pc2.LastID)
+	require.Equal(t, "value25", pc2.LastValue)
 }

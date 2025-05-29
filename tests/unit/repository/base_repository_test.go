@@ -479,7 +479,6 @@ func TestListOne_Success(t *testing.T) {
 	repo := newTestRepo(db)
 	fields := []string{"id", "name", "age"}
 
-	// Expect query with LIMIT 1
 	rows := sqlmock.NewRows(fields).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
 		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ?`,
@@ -526,5 +525,57 @@ func TestListOne_Error(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, expErr, err)
 	require.Empty(t, result)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRepository_Raw_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rawQuery := "SELECT id, name FROM example WHERE name = :name"
+	params := map[string]any{"name": "Alice"}
+
+	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
+	// args == []interface{}{"Alice"}
+
+	mock.ExpectQuery(regexp.QuoteMeta(convertedSQL)).
+		WithArgs(args[0]). // unpack the single argument
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).
+			AddRow("1", "Alice"),
+		)
+
+	results, err := repo.Raw(rawQuery, params)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "Alice", results[0]["name"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRepository_Raw_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rawQuery := "SELECT id FROM example WHERE foo = :foo"
+	params := map[string]any{"foo": "bar"}
+
+	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
+	// args == []interface{}{"bar"}
+
+	mock.ExpectQuery(regexp.QuoteMeta(convertedSQL)).
+		WithArgs(args[0]). // unpack again
+		WillReturnError(fmt.Errorf("db exploded"))
+
+	results, err := repo.Raw(rawQuery, params)
+	require.Error(t, err)
+	require.Nil(t, results)
+	require.Contains(t, err.Error(), "db exploded")
+
 	require.NoError(t, mock.ExpectationsWereMet())
 }

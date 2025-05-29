@@ -278,11 +278,58 @@ func (bc *BaseController[T]) ListOne(w http.ResponseWriter, r *http.Request) {
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-	m, err := bc.Repo.ListOne(orderBy, order, fields, filters)
+	result, err := bc.Repo.ListOne(orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "List one error", err)
 		return
 	}
 
-	helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(m, fields))
+	helper.JSONResponse(w, http.StatusOK, helper.FilterJSON(result, fields))
+}
+
+func (bc *BaseController[T]) Raw(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		helper.JSONErrorSimple(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var input struct {
+		Query  string         `json:"query" validate:"required"`
+		Params map[string]any `json:"params"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid JSON", err)
+		return
+	}
+	if input.Query == "" {
+		helper.JSONErrorSimple(w, http.StatusBadRequest, "Missing query name")
+		return
+	}
+
+	table := bc.Repo.New().TableName()
+	sqlText, ok := helper.GetRawQuery(table, input.Query)
+	if !ok {
+		helper.JSONErrorSimple(w, http.StatusBadRequest, "Unknown raw query")
+		return
+	}
+
+	allow, errAllow := helper.CheckRawQueryAllowed(sqlText)
+	if !allow {
+		helper.JSONError(w, http.StatusBadRequest, "Not allowed raw query", errAllow)
+		return
+	}
+
+	errParams := helper.ValidateRawParams(sqlText, input.Params)
+	if errParams != nil {
+		helper.JSONErrorSimple(w, http.StatusBadRequest, errParams.Error())
+		return
+	}
+
+	results, err := bc.Repo.Raw(sqlText, input.Params)
+	if err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Raw execution failed", err)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusOK, results)
 }

@@ -122,8 +122,8 @@ func TestBuildPageCursor_FullPage_DefaultOrderBy(t *testing.T) {
 
 	pc, err := helper.DecodeCursor(cursor)
 	require.NoError(t, err)
-	require.Equal(t, "id5", pc.LastID)
-	require.Equal(t, "id5", pc.LastValue)
+	require.Equal(t, "id25", pc.LastID)
+	require.Equal(t, "id25", pc.LastValue)
 }
 
 func TestBuildPageCursor_FullPage_CustomOrderBy(t *testing.T) {
@@ -143,6 +143,6 @@ func TestBuildPageCursor_FullPage_CustomOrderBy(t *testing.T) {
 
 	pc, err := helper.DecodeCursor(cursor)
 	require.NoError(t, err)
-	require.Equal(t, "id5", pc.LastID)
-	require.Equal(t, "35", pc.LastValue)
+	require.Equal(t, "id25", pc.LastID)
+	require.Equal(t, "175", pc.LastValue)
 }

@@ -6,6 +6,42 @@ import (
 	"strings"
 )
 
+type RowScanner interface {
+	Columns() ([]string, error)
+	ColumnTypes() ([]*sql.ColumnType, error)
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}
+
+type rowsAdapter struct {
+	*sql.Rows
+}
+
+func NewRowsAdapter(r *sql.Rows) RowScanner {
+	return &rowsAdapter{r}
+}
+
+func (r *rowsAdapter) Columns() ([]string, error) {
+	return r.Rows.Columns()
+}
+
+func (r *rowsAdapter) ColumnTypes() ([]*sql.ColumnType, error) {
+	return r.Rows.ColumnTypes()
+}
+
+func (r *rowsAdapter) Next() bool {
+	return r.Rows.Next()
+}
+
+func (r *rowsAdapter) Scan(dest ...any) error {
+	return r.Rows.Scan(dest...)
+}
+
+func (r *rowsAdapter) Err() error {
+	return r.Rows.Err()
+}
+
 func GenericScanToMap(scanner interface {
 	Columns() ([]string, error)
 	Scan(...any) error
@@ -82,4 +118,40 @@ func MapKeys(m map[string]string) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func SimpleScanRows(rs RowScanner) ([]map[string]any, error) {
+	cols, _ := rs.Columns()
+
+	var results []map[string]any
+	for rs.Next() {
+		values := make([]interface{}, len(cols))
+		scanArgs := make([]interface{}, len(cols))
+		for i := range values {
+			scanArgs[i] = &values[i]
+		}
+
+		if err := rs.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
+
+		rowMap := make(map[string]any, len(cols))
+		for i, col := range cols {
+			v := values[i]
+			switch x := v.(type) {
+			case nil:
+				rowMap[col] = nil
+			case []byte:
+				rowMap[col] = string(x)
+			default:
+				rowMap[col] = x
+			}
+		}
+		results = append(results, rowMap)
+	}
+
+	if err := rs.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }

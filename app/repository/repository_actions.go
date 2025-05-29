@@ -241,3 +241,13 @@ func listRecords(
 	}
 	return list, nil
 }
+
+func rawRecords(db *sql.DB, _ map[string]string, sqlText string, args ...interface{}) ([]map[string]any, error) {
+	rows, err := db.Query(sqlText, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return helper.SimpleScanRows(helper.NewRowsAdapter(rows))
+}

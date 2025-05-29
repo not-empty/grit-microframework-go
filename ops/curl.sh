@@ -17,6 +17,13 @@ EDIT_DATA='{
   "age": 99,
   "last_login": "2025-04-28 23:45:12"
 }'
+NOT_RAW='{
+  "query": "unknown"
+}'
+COUNT_RAW='{
+  "query": "count"
+}'
+
 
 function print_custom_headers() {
   local headers_file="$1"
@@ -104,7 +111,7 @@ curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/edit/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
-  -d "$EDIT_DATA"
+  -d "$EDIT_DATA" | jq
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
@@ -124,7 +131,7 @@ HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/$DOMAIN/delete/$example_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
-  -H "Accept: application/json"
+  -H "Accept: application/json" | jq
 echo -e "\n🗑️  data deleted."
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
@@ -177,5 +184,27 @@ curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Content-Type: application/json" \
   -d '{"ids": ["'"$example_ID_2"'"]}' | jq
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
+
+# # 12. Not existent raw
+echo "📥 Executing non existent raw query..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/select_raw" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Content-Type: application/json" \
+  -d "$NOT_RAW" | jq
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
+
+# # 13. Valid raw
+echo "📥 Executing existent raw query..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/select_raw" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Content-Type: application/json" \
+  -d "$COUNT_RAW" | jq
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"

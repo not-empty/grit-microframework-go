@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-const DefaultPageLimit = 5
+const DefaultPageLimit = 25
 
 type PageCursor struct {
 	LastID    string `json:"last_id"`

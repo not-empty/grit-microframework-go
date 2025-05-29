@@ -44,6 +44,7 @@ type RepositoryInterface[T BaseModel] interface {
 	Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error
 	List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
 	ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error)
+	Raw(query string, params map[string]any) ([]map[string]any, error)
 }
 
 type Repository[T BaseModel] struct {
@@ -105,4 +106,10 @@ func (r *Repository[T]) ListOne(orderBy, order string, fields []string, filters 
 		return make(map[string]any), err
 	}
 	return results[0], err
+}
+
+func (r *Repository[T]) Raw(query string, params map[string]any) ([]map[string]any, error) {
+	m := r.New()
+	sqlText, args := helper.PrepareRawQuery(query, params)
+	return rawRecords(r.DB, m.Schema(), sqlText, args...)
 }

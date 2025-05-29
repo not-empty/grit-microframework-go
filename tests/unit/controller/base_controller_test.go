@@ -84,6 +84,9 @@ type fakeRepository struct {
 
 	listOneResult map[string]any
 	listOneError  error
+
+	rawResult []map[string]any
+	rawError  error
 }
 
 func (fr *fakeRepository) New() *fakeModel {
@@ -129,6 +132,10 @@ func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageC
 
 func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
 	return fr.listOneResult, fr.listOneError
+}
+
+func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string]any, error) {
+	return fr.rawResult, fr.rawError
 }
 
 type fakeULIDGenerator struct{}
@@ -1195,4 +1202,174 @@ func TestBaseController_ListOne_MethodNotAllowed(t *testing.T) {
 	reqResult := rr.Result()
 	require.Equal(t, http.StatusMethodNotAllowed, reqResult.StatusCode)
 	require.Contains(t, rr.Body.String(), "Method not allowed")
+}
+
+func TestBaseController_Raw_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+	req := httptest.NewRequest(http.MethodGet, "/fake/select_raw", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+}
+
+func TestBaseController_Raw_InvalidJSON(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBufferString("{"))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Invalid JSON")
+}
+
+func TestBaseController_Raw_MissingQuery(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+	payload := map[string]any{"query": "", "params": map[string]any{}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Missing query name")
+}
+
+func TestBaseController_Raw_UnknownQueryName(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"foo": "SELECT id FROM fake WHERE field=:field"})
+	payload := map[string]any{"query": "bar", "params": map[string]any{}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Unknown raw query")
+}
+
+func TestBaseController_Raw_DenyList(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"bad": "SELECT * FROM fake; DELETE FROM fake"})
+	payload := map[string]any{"query": "bad", "params": map[string]any{}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Not allowed raw query")
+}
+
+func TestBaseController_Raw_ValidateParams_Missing(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"qry": "SELECT id FROM fake WHERE a=:a AND b=:b"})
+	payload := map[string]any{"query": "qry", "params": map[string]any{"a": 1}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "missing parameter: b")
+}
+
+func TestBaseController_Raw_ValidateParams_Unexpected(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"qry": "SELECT id FROM fake WHERE x=:x"})
+	payload := map[string]any{"query": "qry", "params": map[string]any{"x": 1, "y": 2}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "unexpected parameter: y")
+}
+
+func TestBaseController_Raw_ExecuteError(t *testing.T) {
+	fr := &fakeRepository{rawError: errors.New("exec fail")}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"ok": "SELECT id FROM fake WHERE x=:x"})
+	payload := map[string]any{"query": "ok", "params": map[string]any{"x": 1}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(body), "Raw execution failed")
+}
+
+func TestBaseController_Raw_Success(t *testing.T) {
+	fr := &fakeRepository{rawResult: []map[string]any{{"id": "1"}}}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+	}
+	helper.RegisterRawQueries("fake", map[string]string{"ok": "SELECT id FROM fake WHERE x=:x"})
+	payload := map[string]any{"query": "ok", "params": map[string]any{"x": 1}}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/select_raw", bytes.NewBuffer(b))
+	rr := httptest.NewRecorder()
+
+	bc.Raw(rr, req)
+	res := rr.Result()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	var out []map[string]any
+	err := json.NewDecoder(res.Body).Decode(&out)
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	require.Equal(t, "1", out[0]["id"])
 }

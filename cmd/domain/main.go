@@ -201,6 +201,7 @@ func main() {
 
 	modelStubPath := filepath.Join("../stubs", "model.stub")
 	routesStubPath := filepath.Join("../stubs", "domain.stub")
+	rawStubPath := filepath.Join("../stubs", "raw.stub")
 
 	modelStubBytes, err := os.ReadFile(modelStubPath)
 	if err != nil {
@@ -209,6 +210,10 @@ func main() {
 	routesStubBytes, err := os.ReadFile(routesStubPath)
 	if err != nil {
 		log.Fatalf("Error reading domain stub: %v", err)
+	}
+	rawStubBytes, err := os.ReadFile(rawStubPath)
+	if err != nil {
+		log.Fatalf("Error reading raw stub: %v", err)
 	}
 
 	modelTmpl, err := template.New("model").Parse(string(modelStubBytes))
@@ -219,9 +224,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error parsing domain stub: %v", err)
 	}
+	rawTmpl, err := template.New("raw").Parse(string(rawStubBytes))
+	if err != nil {
+		log.Fatalf("Error parsing raw stub: %v", err)
+	}
 
 	modelOutPath := filepath.Join("../..", "app", "repository", "models", domainLower+"_model.go")
 	routesOutPath := filepath.Join("../..", "app", "router", "domains", domainLower+"_domain.go")
+	rawOutPath := filepath.Join("../..", "app", "repository", "models", domainLower+"_raw.go")
 
 	modelFile, err := os.Create(modelOutPath)
 	if err != nil {
@@ -235,11 +245,20 @@ func main() {
 	}
 	defer routesFile.Close()
 
+	rawFile, err := os.Create(rawOutPath)
+	if err != nil {
+		log.Fatalf("Error creating raw output file: %v", err)
+	}
+	defer rawFile.Close()
+
 	if err := modelTmpl.Execute(modelFile, data); err != nil {
 		log.Fatalf("Error executing model template: %v", err)
 	}
 	if err := routesTmpl.Execute(routesFile, data); err != nil {
 		log.Fatalf("Error executing routes template: %v", err)
+	}
+	if err := rawTmpl.Execute(rawFile, data); err != nil {
+		log.Fatalf("Error executing raw template: %v", err)
 	}
 
 	if err := os.Chown(modelOutPath, 1000, 1000); err != nil {
@@ -248,6 +267,9 @@ func main() {
 	if err := os.Chown(routesOutPath, 1000, 1000); err != nil {
 		log.Fatalf("Error changing file ownership for routes: %v", err)
 	}
+	if err := os.Chown(rawOutPath, 1000, 1000); err != nil {
+		log.Fatalf("Error changing file ownership for raw: %v", err)
+	}
 
-	fmt.Printf("Generated domain files:\n - %s\n - %s\n", modelOutPath, routesOutPath)
+	fmt.Printf("Generated domain files:\n - %s\n - %s\n - %s\n", modelOutPath, routesOutPath, rawOutPath)
 }

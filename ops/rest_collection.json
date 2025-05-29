@@ -374,6 +374,46 @@
 					"response": []
 				},
 				{
+					"name": "Select Raw",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"count\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/select_raw",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"select_raw"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Detail",
 					"request": {
 						"method": "GET",
