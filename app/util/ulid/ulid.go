@@ -1,22 +1,13 @@
 package ulid
 
 import (
+	"crypto/rand"
 	"errors"
+	"io"
 	"math"
 	"strings"
 	"time"
 )
-
-type Generator interface {
-	IsValidFormat(ulidStr string) bool
-	GetTimeFromUlid(ulidStr string) (int64, error)
-	GetDateFromUlid(ulidStr string) (string, error)
-	GetRandomnessFromString(ulidStr string) (string, error)
-	IsDuplicatedTime(t int64) bool
-	HasIncrementLastRandChars(duplicateTime bool) bool
-	Generate(t int64) (string, error)
-	DecodeTime(timePart string) (int64, error)
-}
 
 const (
 	CHARS         = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -26,19 +17,23 @@ const (
 	RANDOM_LENGTH = 16
 )
 
-type DefaultGenerator struct {
-	LastGenTime   int64
-	LastRandChars []int
+var RandReader io.Reader = rand.Reader
+
+type Generator interface {
+	IsValidFormat(ulidStr string) bool
+	GetTimeFromUlid(ulidStr string) (int64, error)
+	GetDateFromUlid(ulidStr string) (string, error)
+	GetRandomnessFromString(ulidStr string) (string, error)
+	IsDuplicatedTime(t int64) bool
+	HasIncrementLastRandChars(duplicateTime bool) bool
+	Generate(ts int64) (string, error)
+	DecodeTime(timePart string) (int64, error)
 }
 
+type DefaultGenerator struct{}
+
 func NewDefaultGenerator() *DefaultGenerator {
-	dg := &DefaultGenerator{
-		LastRandChars: make([]int, RANDOM_LENGTH),
-	}
-	for i := 0; i < RANDOM_LENGTH; i++ {
-		dg.LastRandChars[i] = randomInt(0, BASE-1)
-	}
-	return dg
+	return &DefaultGenerator{}
 }
 
 func (u *DefaultGenerator) IsValidFormat(ulidStr string) bool {
@@ -49,8 +44,7 @@ func (u *DefaultGenerator) GetTimeFromUlid(ulidStr string) (int64, error) {
 	if !u.IsValidFormat(ulidStr) {
 		return 0, errors.New("invalid ULID format")
 	}
-	timePart := ulidStr[:TIME_LENGTH]
-	return u.DecodeTime(timePart)
+	return u.DecodeTime(ulidStr[:TIME_LENGTH])
 }
 
 func (u *DefaultGenerator) GetDateFromUlid(ulidStr string) (string, error) {
@@ -69,63 +63,50 @@ func (u *DefaultGenerator) GetRandomnessFromString(ulidStr string) (string, erro
 }
 
 func (u *DefaultGenerator) IsDuplicatedTime(t int64) bool {
-	return t == u.LastGenTime
+	return false
 }
 
 func (u *DefaultGenerator) HasIncrementLastRandChars(duplicateTime bool) bool {
-	if !duplicateTime {
-		u.LastRandChars = make([]int, RANDOM_LENGTH)
-		for i := 0; i < RANDOM_LENGTH; i++ {
-			u.LastRandChars[i] = randomInt(0, BASE-1)
-		}
-		return false
-	}
-	for i := RANDOM_LENGTH - 1; i >= 0; i-- {
-		if u.LastRandChars[i] == BASE-1 {
-			u.LastRandChars[i] = 0
-		} else {
-			u.LastRandChars[i]++
-			break
-		}
-	}
-	return true
+	return false
 }
 
-func (u *DefaultGenerator) Generate(t int64) (string, error) {
-	if t == 0 {
-		t = int64(time.Now().UnixNano() / 1e6)
-	}
-	duplicateTime := u.IsDuplicatedTime(t)
-	u.LastGenTime = t
-
-	timeChars := ""
-	temp := t
-	for i := 0; i < TIME_LENGTH; i++ {
-		mod := temp % BASE
-		timeChars = string(CHARS[mod]) + timeChars
-		temp = temp / BASE
+func (u *DefaultGenerator) Generate(ts int64) (string, error) {
+	if ts == 0 {
+		ts = time.Now().UnixNano() / 1e6
 	}
 
-	u.HasIncrementLastRandChars(duplicateTime)
-	randChars := ""
+	var out [TIME_LENGTH + RANDOM_LENGTH]byte
+
+	tmp := ts
+	for i := TIME_LENGTH - 1; i >= 0; i-- {
+		out[i] = CHARS[tmp%BASE]
+		tmp /= BASE
+	}
+
+	var buf [RANDOM_LENGTH]byte
+	if _, err := RandReader.Read(buf[:]); err != nil {
+		return "", err
+	}
+
 	for i := 0; i < RANDOM_LENGTH; i++ {
-		randChars += string(CHARS[u.LastRandChars[i]])
+		out[TIME_LENGTH+i] = CHARS[buf[i]&0x1F]
 	}
-	return timeChars + randChars, nil
+
+	return string(out[:]), nil
 }
 
 func (u *DefaultGenerator) DecodeTime(timePart string) (int64, error) {
 	if len(timePart) != TIME_LENGTH {
 		return 0, errors.New("invalid time part length")
 	}
-	reversed := reverseString(timePart)
-	var carry int64 = 0
-	for i, char := range reversed {
-		index := strings.IndexRune(CHARS, char)
-		if index == -1 {
-			return 0, errors.New("invalid ULID character: " + string(char))
+	rev := reverseString(timePart)
+	var carry int64
+	for i, r := range rev {
+		idx := strings.IndexRune(CHARS, r)
+		if idx < 0 {
+			return 0, errors.New("invalid ULID character: " + string(r))
 		}
-		carry += int64(index) * int64(math.Pow(float64(BASE), float64(i)))
+		carry += int64(idx) * int64(math.Pow(BASE, float64(i)))
 	}
 	if carry > TIME_MAX {
 		return 0, errors.New("timestamp too large")
@@ -139,8 +120,4 @@ func reverseString(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
-}
-
-func randomInt(min, max int) int {
-	return min + int(time.Now().UnixNano()%int64(max-min+1))
 }

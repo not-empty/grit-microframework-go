@@ -1,6 +1,7 @@
 package ulid
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -9,176 +10,130 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	TimeLength   = 10
-	RandomLength = 16
-)
-
-func TestDefaultGenerator_IsValidFormat(t *testing.T) {
+func TestDefaultGenerator_Generate_IsValidFormat(t *testing.T) {
 	dg := ulid.NewDefaultGenerator()
 	id, err := dg.Generate(0)
 	require.NoError(t, err)
-	require.Equal(t, TimeLength+RandomLength, len(id), "ULID length should be %d", TimeLength+RandomLength)
-	require.True(t, dg.IsValidFormat(id), "Generated ULID should be valid format")
+	require.Equal(t, ulid.TIME_LENGTH+ulid.RANDOM_LENGTH, len(id), "ULID length mismatch")
+	require.True(t, dg.IsValidFormat(id), "Generated ULID should be recognized as valid")
 
-	invalid := "abc"
-	require.False(t, dg.IsValidFormat(invalid), "Short string should be invalid")
+	for _, r := range id {
+		require.Contains(t, ulid.CHARS, string(r), "Invalid character in ULID: %c", r)
+	}
 }
 
-func TestDefaultGenerator_Generate(t *testing.T) {
+func TestDefaultGenerator_Generate_DeterministicTimePart(t *testing.T) {
+	ts := time.Date(2025, time.May, 29, 12, 0, 0, 0, time.UTC).UnixNano() / 1e6
 	dg := ulid.NewDefaultGenerator()
-	ulidStr, err := dg.Generate(0)
+	id1, err := dg.Generate(ts)
 	require.NoError(t, err)
-	require.Equal(t, TimeLength+RandomLength, len(ulidStr), "ULID should be %d characters long", TimeLength+RandomLength)
+	id2, err := dg.Generate(ts)
+	require.NoError(t, err)
+
+	require.Equal(t, id1[:ulid.TIME_LENGTH], id2[:ulid.TIME_LENGTH])
+
+	require.NotEqual(t, id1[ulid.TIME_LENGTH:], id2[ulid.TIME_LENGTH:])
 }
 
-func TestDefaultGenerator_DecodeTime(t *testing.T) {
+func TestDefaultGenerator_IsValidFormat_Errors(t *testing.T) {
 	dg := ulid.NewDefaultGenerator()
+	require.False(t, dg.IsValidFormat("short"))
+	long := strings.Repeat("0", ulid.TIME_LENGTH+ulid.RANDOM_LENGTH+1)
+	require.False(t, dg.IsValidFormat(long))
+}
 
-	ulidStr, err := dg.Generate(0)
+func TestDecodeTime_ValidAndInvalid(t *testing.T) {
+	dg := ulid.NewDefaultGenerator()
+	ts := time.Now().UnixNano() / 1e6
+	id, err := dg.Generate(ts)
 	require.NoError(t, err)
-	timePart := ulidStr[:TimeLength]
-
-	decoded, err := dg.DecodeTime(timePart)
+	decoded, err := dg.DecodeTime(id[:ulid.TIME_LENGTH])
 	require.NoError(t, err)
-	now := time.Now().UnixNano() / 1e6
-	require.LessOrEqual(t, decoded, now, "Decoded time should be less than or equal to current time")
+	require.Equal(t, ts, decoded, "Decoded timestamp must match input timestamp")
 
 	_, err = dg.DecodeTime("12345")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid time part length")
 
-	invalidTimePart := timePart[:len(timePart)-1] + "!"
-	_, err = dg.DecodeTime(invalidTimePart)
+	bad := id[:ulid.TIME_LENGTH-1] + "!"
+	_, err = dg.DecodeTime(bad)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid ULID character")
+
+	zz := strings.Repeat("Z", ulid.TIME_LENGTH)
+	_, err = dg.DecodeTime(zz)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "timestamp too large")
 }
 
-func TestDefaultGenerator_GetTimeFromUlid(t *testing.T) {
+func TestGetTimeAndDateFromUlid(t *testing.T) {
 	dg := ulid.NewDefaultGenerator()
-	ulidStr, err := dg.Generate(0)
+	id, err := dg.Generate(0)
 	require.NoError(t, err)
 
-	tVal, err := dg.GetTimeFromUlid(ulidStr)
+	tVal, err := dg.GetTimeFromUlid(id)
 	require.NoError(t, err)
 	now := time.Now().UnixNano() / 1e6
-	require.LessOrEqual(t, tVal, now, "Extracted time should be ≤ current time")
-}
+	require.LessOrEqual(t, tVal, now)
 
-func TestDefaultGenerator_GetDateFromUlid(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-	ulidStr, err := dg.Generate(0)
+	dateStr, err := dg.GetDateFromUlid(id)
 	require.NoError(t, err)
-
-	dateStr, err := dg.GetDateFromUlid(ulidStr)
-	require.NoError(t, err)
-	require.NotEmpty(t, dateStr, "Date should not be empty")
+	require.NotEmpty(t, dateStr)
 	parts := strings.Split(dateStr, " ")
-	require.Len(t, parts, 2, "Date should contain date and time parts")
+	require.Len(t, parts, 2)
 }
 
-func TestDefaultGenerator_GetRandomnessFromString(t *testing.T) {
+func TestGetTimeFromUlid_Invalid(t *testing.T) {
 	dg := ulid.NewDefaultGenerator()
-	ulidStr, err := dg.Generate(0)
+	tVal, err := dg.GetTimeFromUlid("bad")
+	require.Error(t, err)
+	require.Zero(t, tVal)
+	require.Contains(t, err.Error(), "invalid ULID format")
+}
+
+func TestGetDateFromUlid_Invalid(t *testing.T) {
+	dg := ulid.NewDefaultGenerator()
+	d, err := dg.GetDateFromUlid("bad")
+	require.Error(t, err)
+	require.Empty(t, d)
+	require.Contains(t, err.Error(), "invalid ULID format")
+}
+
+func TestGetRandomnessFromString(t *testing.T) {
+	dg := ulid.NewDefaultGenerator()
+	id, err := dg.Generate(0)
 	require.NoError(t, err)
 
-	randPart, err := dg.GetRandomnessFromString(ulidStr)
+	randPart, err := dg.GetRandomnessFromString(id)
 	require.NoError(t, err)
-	require.Equal(t, RandomLength, len(randPart), "Randomness part should be %d characters", RandomLength)
+	require.Len(t, randPart, ulid.RANDOM_LENGTH)
 
 	_, err = dg.GetRandomnessFromString("short")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid ULID format")
 }
 
-func TestDefaultGenerator_IsDuplicatedTime(t *testing.T) {
+func TestStubs_IsDuplicatedTimeAndHasIncrement(t *testing.T) {
 	dg := ulid.NewDefaultGenerator()
-	now := time.Now().UnixNano() / 1e6
-	dg.LastGenTime = now
-	require.True(t, dg.IsDuplicatedTime(now), "Should be duplicated time")
-	require.False(t, dg.IsDuplicatedTime(now+1), "Time + 1 should not be considered duplicate")
+	require.False(t, dg.IsDuplicatedTime(0))
+	require.False(t, dg.HasIncrementLastRandChars(true))
+	require.False(t, dg.HasIncrementLastRandChars(false))
 }
 
-func TestDefaultGenerator_HasIncrementLastRandChars(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-	orig := make([]int, len(dg.LastRandChars))
-	copy(orig, dg.LastRandChars)
+type errReader struct{}
 
-	changed := dg.HasIncrementLastRandChars(false)
-	require.False(t, changed, "Should return false for non-duplicate time")
-	require.Equal(t, RandomLength, len(dg.LastRandChars))
-
-	dg.LastRandChars = make([]int, RandomLength)
-	for i := 0; i < RandomLength; i++ {
-		dg.LastRandChars[i] = 0
-	}
-	changed = dg.HasIncrementLastRandChars(true)
-	require.True(t, changed, "Should return true for duplicate time")
-	require.Equal(t, 1, dg.LastRandChars[RandomLength-1])
+func (e *errReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read error")
 }
 
-func TestDefaultGenerator_DecodeTime_Error(t *testing.T) {
+func TestGenerate_RandReaderError(t *testing.T) {
+	orig := ulid.RandReader
+	defer func() { ulid.RandReader = orig }()
+	ulid.RandReader = &errReader{}
+
 	dg := ulid.NewDefaultGenerator()
-	_, err := dg.DecodeTime("12345")
+	id, err := dg.Generate(0)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid time part length")
-
-	validTimePart := "0123456789"
-	invalidTimePart := validTimePart[:len(validTimePart)-1] + "X"
-	if strings.Contains(ulid.CHARS, "X") {
-		invalidTimePart = validTimePart[:len(validTimePart)-1] + "!"
-	}
-	_, err = dg.DecodeTime(invalidTimePart)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid ULID character")
-}
-
-func TestDefaultGenerator_HasIncrementLastRandChars_AllAtMax(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-
-	now := time.Now().UnixNano() / 1e6
-	dg.LastGenTime = now
-
-	const maxVal = 31
-	const randomLength = 16
-	dg.LastRandChars = make([]int, randomLength)
-	for i := 0; i < randomLength; i++ {
-		dg.LastRandChars[i] = maxVal
-	}
-
-	changed := dg.HasIncrementLastRandChars(true)
-	require.True(t, changed, "Expected duplicate branch to return true")
-
-	for i, digit := range dg.LastRandChars {
-		require.Equalf(t, 0, digit, "Expected digit at index %d to be reset to 0", i)
-	}
-}
-
-func TestDefaultGenerator_DecodeTime_TimestampTooLarge(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-
-	timePart := strings.Repeat("Z", 10)
-
-	decoded, err := dg.DecodeTime(timePart)
-	require.Error(t, err, "Expected an error when decoded time exceeds TIME_MAX")
-	require.Equal(t, int64(0), decoded, "Decoded time should be zero when error occurs")
-	require.Contains(t, err.Error(), "timestamp too large", "Error should indicate that timestamp is too large")
-}
-
-func TestDefaultGenerator_GetTimeFromUlid_InvalidFormat(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-
-	tVal, err := dg.GetTimeFromUlid("abc")
-	require.Error(t, err, "Expected error for invalid ULID format")
-	require.Equal(t, int64(0), tVal, "Returned time should be zero on error")
-	require.Contains(t, err.Error(), "invalid ULID format")
-}
-
-func TestDefaultGenerator_GetDateFromUlid_InvalidFormat(t *testing.T) {
-	dg := ulid.NewDefaultGenerator()
-	invalidULID := "invalid"
-	date, err := dg.GetDateFromUlid(invalidULID)
-	require.Error(t, err, "Expected an error for invalid ULID format")
-	require.Equal(t, "", date, "Date should be empty when error occurs")
-	require.Contains(t, err.Error(), "invalid ULID format")
+	require.Contains(t, err.Error(), "read error")
+	require.Empty(t, id, "On error, generated ULID string should be empty")
 }
