@@ -5,13 +5,13 @@ import (
 
 	"github.com/not-empty/grit/app/repository"
 	"github.com/not-empty/grit/app/repository/models"
-	"github.com/not-empty/grit/app/router/routes"
 	"github.com/not-empty/grit/app/router/registry"
+	route "github.com/not-empty/grit/app/router/routes"
 )
 
 func init() {
 	registry.RegisterRouteInitializer(func(db *sql.DB) {
-		repo := repository.NewRepository[*models.{{.Domain}}](db, func() *models.{{.Domain}} {
+		repo := repository.NewRepository(db, func() *models.{{.Domain}} {
 			return new(models.{{.Domain}})
 		})
 		baseRoutes := &route.BaseRoutes[*models.{{.Domain}}]{
