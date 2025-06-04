@@ -11,21 +11,26 @@ import (
 var ScanFunc = helper.GenericScanToMap
 
 func addRecord(db *sql.DB, m BaseModel) error {
-	cols := m.Columns()
-	values := m.Values()
-	placeholders := make([]string, len(cols))
-	for i := range cols {
+	allCols := m.Columns()
+	allVals := m.Values()
+
+	defaultCols := m.HasDefaultValue()
+
+	finalCols, finalVals := helper.FilterOutDefaulted(allCols, allVals, defaultCols)
+
+	placeholders := make([]string, len(finalCols))
+	for i := range placeholders {
 		placeholders[i] = "?"
 	}
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
 		m.TableName(),
-		strings.Join(cols, ", "),
+		strings.Join(finalCols, ", "),
 		strings.Join(placeholders, ", "),
 	)
 
-	_, err := db.Exec(query, values...)
+	_, err := db.Exec(query, finalVals...)
 	return err
 }
 

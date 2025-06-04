@@ -1,0 +1,11 @@
+CREATE TABLE example (
+  id CHAR(26) NOT NULL,
+  name TEXT NOT NULL, -- validate: "min=5" -- sanitize-html
+  age INT DEFAULT 0, -- validate: "required,number,gt=0,lt=100"
+  last_login DATETIME DEFAULT NULL,
+  created_at DATETIME DEFAULT NULL,
+  updated_at DATETIME DEFAULT NULL,
+  deleted_at DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_example_deleted_at` (`deleted_at`) USING BTREE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

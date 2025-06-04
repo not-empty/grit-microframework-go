@@ -22,6 +22,7 @@ type DomainData struct {
 	Schema      string
 	HasSanitize bool
 	HasDateTime bool
+	DefaultCols string
 }
 
 func Capitalize(s string) string {
@@ -58,10 +59,19 @@ func extractTableName(ddl string) string {
 	return strings.Trim(rest[:end], "`\"")
 }
 
-func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema string, hasSanitize bool, hasDateTime bool) {
+func parseExtraFields(
+	ddl string,
+) (fields, columns, values, sanitize, schema, defaultColsList string,
+	hasSanitize, hasDateTime bool,
+) {
 	lines := strings.Split(ddl, "\n")
-	var fieldLines, colNames, valNames, sanitizeLines []string
-	schemaMap := make([]string, 0)
+
+	var fieldLines []string
+	var colNames []string
+	var valNames []string
+	var sanitizeLines []string
+	var schemaMap []string
+	var defaultCols []string
 
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
@@ -148,19 +158,23 @@ func parseExtraFields(ddl string) (fields, columns, values, sanitize, schema str
 			sanitizeLines = append(sanitizeLines, fmt.Sprintf("m.%s = policy.Sanitize(m.%s)", fieldName, fieldName))
 			hasSanitize = true
 		}
+
+		if strings.Contains(upperLine, "DEFAULT") {
+			defaultCols = append(defaultCols, fmt.Sprintf("\"%s\"", colName))
+		}
 	}
 
 	fields = strings.Join(fieldLines, "\n\t")
 	columns = strings.Join(colNames, ", ")
 	values = strings.Join(valNames, ", ")
 	schema = strings.Join(schemaMap, ",\n\t\t")
-
 	if hasSanitize {
 		sanitize = "policy := bluemonday.UGCPolicy()\n\t" + strings.Join(sanitizeLines, "\n\t")
 	} else {
 		sanitize = "// no fields to sanitize"
 	}
 
+	defaultColsList = strings.Join(defaultCols, ", ")
 	return
 }
 
@@ -184,7 +198,8 @@ func main() {
 		log.Fatalf("Could not extract table name from DDL")
 	}
 
-	extraField, extraColumn, extraValue, sanitize, schema, hasSanitize, HasDateTime := parseExtraFields(ddlContent)
+	extraField, extraColumn, extraValue, sanitize, schema, defaultColsList, hasSanitize, hasDateTime :=
+		parseExtraFields(ddlContent)
 
 	data := DomainData{
 		Domain:      domainCap,
@@ -196,7 +211,8 @@ func main() {
 		Sanitize:    sanitize,
 		Schema:      schema,
 		HasSanitize: hasSanitize,
-		HasDateTime: HasDateTime,
+		HasDateTime: hasDateTime,
+		DefaultCols: defaultColsList,
 	}
 
 	modelStubPath := filepath.Join("../stubs", "model.stub")
@@ -255,7 +271,7 @@ func main() {
 		log.Fatalf("Error executing model template: %v", err)
 	}
 	if err := routesTmpl.Execute(routesFile, data); err != nil {
-		log.Fatalf("Error executing routes template: %v", err)
+		log.Fatalf("Error executing domain template: %v", err)
 	}
 	if err := rawTmpl.Execute(rawFile, data); err != nil {
 		log.Fatalf("Error executing raw template: %v", err)

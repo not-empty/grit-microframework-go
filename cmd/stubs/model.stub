@@ -41,6 +41,14 @@ func (m *{{.Domain}}) Values() []interface{} {
 	return []interface{}{m.ID, {{.Values}}, m.CreatedAt, m.UpdatedAt, m.DeletedAt}
 }
 
+func (m *{{.Domain}}) HasDefaultValue() []string {
+{{- if .DefaultCols }}
+	return []string{ {{.DefaultCols}} }
+{{- else }}
+	return []string{}
+{{- end }}
+}
+
 func (m *{{.Domain}}) PrimaryKey() string {
 	return "id"
 }

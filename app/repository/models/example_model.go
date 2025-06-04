@@ -40,6 +40,10 @@ func (m *Example) Values() []interface{} {
 	return []interface{}{m.ID, m.Name, m.Age, m.LastLogin, m.CreatedAt, m.UpdatedAt, m.DeletedAt}
 }
 
+func (m *Example) HasDefaultValue() []string {
+	return []string{"age", "last_login"}
+}
+
 func (m *Example) PrimaryKey() string {
 	return "id"
 }

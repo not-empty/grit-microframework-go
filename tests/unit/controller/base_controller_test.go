@@ -35,6 +35,10 @@ func (m *fakeModel) Values() []interface{} {
 	return []interface{}{m.ID, m.Field}
 }
 
+func (m *fakeModel) HasDefaultValue() []string {
+	return []string{"field"}
+}
+
 func (m *fakeModel) PrimaryKey() string {
 	return "id"
 }

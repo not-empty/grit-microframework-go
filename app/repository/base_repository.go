@@ -28,6 +28,7 @@ type BaseModel interface {
 	TableName() string
 	Columns() []string
 	Values() []interface{}
+	HasDefaultValue() []string
 	PrimaryKey() string
 	PrimaryKeyValue() interface{}
 	Schema() map[string]string

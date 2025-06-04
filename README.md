@@ -323,6 +323,21 @@ CREATE TABLE example (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
+## Default Behavior
+
+> GRIT automatically detects and omits any model fields that have a database‐side DEFAULT clause when inserting new records and these fields are not present i the request. In practice, this means:
+
+If in your SQL you have a field with default value like:
+
+```sql
+...
+status_name VARCHAR(20) NOT NULL DEFAULT 'active',
+notes TEXT DEFAULT NULL,
+...
+```
+
+And if you make an "/add" request without informing these fields, they will be omitted in the insert query, letting the database use his DEFAULT VALUE.
+
 ---
 
 ## Testing & Coverage
