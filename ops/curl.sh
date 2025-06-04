@@ -22,7 +22,18 @@ NOT_RAW='{
 COUNT_RAW='{
   "query": "count"
 }'
-
+MISSING_BULK='[]'
+BULK_DATA='[
+  {
+    "name": "Bulk 1",
+    "age": 1,
+    "last_login": "2025-04-28 23:45:12"
+  },
+  {
+    "name": "Bulk 2",
+    "age": 2
+  }
+],'
 
 function print_custom_headers() {
   local headers_file="$1"
@@ -31,7 +42,7 @@ function print_custom_headers() {
   echo
 }
 
-# 1. Get JWT Token from headers
+# Get JWT Token from headers
 echo "🔐 Requesting token..."
 AUTH_HEADERS=$(mktemp)
 curl -s -D "$AUTH_HEADERS" -o /dev/null -X POST "$BASE_URL/auth/generate" \
@@ -52,7 +63,7 @@ fi
 
 echo "✅ Token acquired. Expires: $EXPIRES"
 
-# 2. Create a new data
+# Create a new data
 echo "➕ Creating data..."
 HEADERS_FILE=$(mktemp)
 ADD_RESPONSE=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
@@ -72,7 +83,7 @@ if [[ "$example_ID" == "null" || -z "$example_ID" ]]; then
 fi
 echo "✅ example created with ID: $example_ID"
 
-# 3. Create a new data 2
+# Create a new data 2
 echo "➕ Creating data..."
 HEADERS_FILE=$(mktemp)
 ADD_RESPONSE_2=$(curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/add" \
@@ -92,8 +103,19 @@ if [[ "$example_ID" == "null" || -z "$example_ID" ]]; then
 fi
 echo "✅ data created with ID: $example_ID"
 
+# Create bulk data
+echo "➕ Creating bulk data..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk_add" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Content-Type: application/json" \
+  -d "$BULK_DATA" | jq
 
-# 4. Get initial detail
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
+
+# Get initial detail
 echo "🔎 Fetching data detail (before edit)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
@@ -103,7 +125,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 4. Edit the data
+# Edit the data
 echo "✏️ Updating data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/edit/$example_ID" \
@@ -114,7 +136,7 @@ curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/edit/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 5. Get updated detail
+# Get updated detail
 echo "🔎 Fetching data detail (after edit)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
@@ -124,7 +146,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 6. Delete the data
+# Delete the data
 echo "❌ Deleting data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X DELETE "$BASE_URL/$DOMAIN/delete/$example_ID" \
@@ -135,7 +157,7 @@ echo -e "\n🗑️  data deleted."
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 7. Get dead detail
+# Get dead detail
 echo "🕵️ Getting /$DOMAIN/dead_detail/$example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_detail/$example_ID" \
@@ -145,7 +167,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_detail/$example_ID" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 8. List deleted data
+# List deleted data
 echo "📋 Listing /$DOMAIN/dead_list..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
@@ -155,7 +177,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 9. List active data (final)
+# List active data (final)
 echo "📥 Listing examples (after delete)..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
@@ -165,7 +187,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# # 10. List one active data
+# List one active data
 echo "📥 Listing one example..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list_one?filter=age:eql:22" \
@@ -175,7 +197,7 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list_one?filter=age:eql:22"
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# 11. Bulk fetch by ID
+# Bulk fetch by ID
 echo "📦 Bulk fetching data $example_ID..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \
@@ -186,7 +208,7 @@ curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/bulk" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# # 12. Not existent raw
+# Not existent raw
 echo "📥 Executing non existent raw query..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/select_raw" \
@@ -197,7 +219,7 @@ curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/select_raw" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
-# # 13. Valid raw
+# Valid raw
 echo "📥 Executing existent raw query..."
 HEADERS_FILE=$(mktemp)
 curl -s -D "$HEADERS_FILE" -X POST "$BASE_URL/$DOMAIN/select_raw" \

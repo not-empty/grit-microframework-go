@@ -114,6 +114,35 @@ func bulkRecords(
 	return list, nil
 }
 
+func bulkAddRecords(db *sql.DB, m []BaseModel) error {
+	first := m[0]
+	table := first.TableName()
+	allCols := first.Columns()
+	defaultCols := first.HasDefaultValue()
+
+	var (
+		rowsSQL []string
+		args    []interface{}
+	)
+
+	for _, m := range m {
+		vals := m.Values()
+		rowSQL, rowArgs := helper.BuildRowTokens(allCols, vals, defaultCols)
+		rowsSQL = append(rowsSQL, rowSQL)
+		args = append(args, rowArgs...)
+	}
+
+	query := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES %s",
+		table,
+		strings.Join(allCols, ", "),
+		strings.Join(rowsSQL, ", "),
+	)
+
+	_, err := db.Exec(query, args...)
+	return err
+}
+
 func deleteRecord(db *sql.DB, table, pk string, pkVal interface{}) error {
 	query := fmt.Sprintf(
 		"UPDATE %s SET deleted_at = NOW() WHERE %s = ? AND deleted_at IS NULL",

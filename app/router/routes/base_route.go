@@ -19,6 +19,7 @@ func (br *BaseRoutes[T]) RegisterRoutes() {
 
 	http.Handle(br.Prefix+"/add", middleware.ClosedChain(http.HandlerFunc(ctrl.Add)))
 	http.Handle(br.Prefix+"/bulk", middleware.ClosedChain(http.HandlerFunc(ctrl.Bulk)))
+	http.Handle(br.Prefix+"/bulk_add", middleware.ClosedChain(http.HandlerFunc(ctrl.BulkAdd)))
 	http.Handle(br.Prefix+"/dead_detail/", middleware.ClosedChain(http.HandlerFunc(ctrl.DeadDetail)))
 	http.Handle(br.Prefix+"/dead_list", middleware.ClosedChain(http.HandlerFunc(ctrl.DeadList)))
 	http.Handle(br.Prefix+"/delete/", middleware.ClosedChain(http.HandlerFunc(ctrl.Delete)))

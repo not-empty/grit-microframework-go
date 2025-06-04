@@ -38,6 +38,7 @@ type RepositoryInterface[T BaseModel] interface {
 	New() T
 	Add(m T) error
 	Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error)
+	BulkAdd(models []T) error
 	DeadDetail(id interface{}, fields []string) (map[string]any, error)
 	DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
 	Delete(m T) error
@@ -66,6 +67,14 @@ func (r *Repository[T]) New() T {
 
 func (r *Repository[T]) Add(m T) error {
 	return addRecord(r.DB, m)
+}
+
+func (r *Repository[T]) BulkAdd(m []T) error {
+	baseModels := make([]BaseModel, len(m))
+	for i, model := range m {
+		baseModels[i] = model
+	}
+	return bulkAddRecords(r.DB, baseModels)
 }
 
 func (r *Repository[T]) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {

@@ -97,6 +97,58 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 	helper.JSONResponse(w, http.StatusOK, helper.FilterList(list, fields))
 }
 
+func (bc *BaseController[T]) BulkAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		helper.JSONErrorSimple(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var items []T
+	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Invalid JSON payload (must be an array)", err)
+		return
+	}
+
+	count := len(items)
+	if count == 0 || count > 25 {
+		helper.JSONErrorSimple(w, http.StatusBadRequest,
+			"Payload must contain between 1 and 25 items")
+		return
+	}
+
+	var generatedIDs []string
+	now := time.Now()
+
+	for _, m := range items {
+		helper.SanitizeModel(m)
+		if err := helper.ValidatePayload(w, m); err != nil {
+			return
+		}
+		id, err := bc.ULIDGen.Generate(0)
+		if err != nil {
+			helper.JSONError(w, http.StatusInternalServerError, "ULID generation failed", err)
+			return
+		}
+		bc.SetPK(m, id)
+		generatedIDs = append(generatedIDs, id)
+		if c, ok := any(m).(repository.Creatable); ok {
+			c.SetCreatedAt(now)
+		}
+		if u, ok := any(m).(repository.Updatable); ok {
+			u.SetUpdatedAt(now)
+		}
+	}
+
+	if err := bc.Repo.BulkAdd(items); err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Bulk insert failed", err)
+		return
+	}
+
+	helper.JSONResponse(w, http.StatusCreated, map[string][]string{
+		"ids": generatedIDs,
+	})
+}
+
 func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		helper.JSONErrorSimple(w, http.StatusMethodNotAllowed, "Method not allowed")

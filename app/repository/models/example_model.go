@@ -9,7 +9,7 @@ import (
 type Example struct {
 	ID        string           `json:"id"`
 	Name      string           `json:"name" validate:"required,min=5"`
-	Age       int              `json:"age" validate:"required,number,gt=0,lt=100"`
+	Age       int              `json:"age" validate:"required,required,number,gt=0,lt=100"`
 	LastLogin *helper.JSONTime `json:"last_login"`
 	CreatedAt *time.Time       `json:"created_at"`
 	UpdatedAt *time.Time       `json:"updated_at"`
@@ -41,7 +41,7 @@ func (m *Example) Values() []interface{} {
 }
 
 func (m *Example) HasDefaultValue() []string {
-	return []string{"age", "last_login"}
+	return []string{"last_login"}
 }
 
 func (m *Example) PrimaryKey() string {

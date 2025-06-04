@@ -2,6 +2,7 @@ package helper
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -63,4 +64,28 @@ func FilterOutDefaulted(
 		filteredVals = append(filteredVals, val)
 	}
 	return filteredCols, filteredVals
+}
+
+func BuildRowTokens(
+	allCols []string,
+	vals []interface{},
+	defaultCols []string,
+) (rowSQL string, argsOut []interface{}) {
+	defaultSet := make(map[string]struct{}, len(defaultCols))
+	for _, dc := range defaultCols {
+		defaultSet[dc] = struct{}{}
+	}
+
+	tokens := make([]string, len(allCols))
+	for i, col := range allCols {
+		v := vals[i]
+		if _, isDefault := defaultSet[col]; isDefault && IsEmptyValue(v) {
+			tokens[i] = "DEFAULT"
+		} else {
+			tokens[i] = "?"
+			argsOut = append(argsOut, v)
+		}
+	}
+	rowSQL = "(" + strings.Join(tokens, ", ") + ")"
+	return rowSQL, argsOut
 }

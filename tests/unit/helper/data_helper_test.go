@@ -2,6 +2,7 @@ package helper
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -191,5 +192,118 @@ func TestFilterOutDefaulted_NoMatchesInDefaultCols(t *testing.T) {
 	}
 	if !reflect.DeepEqual(fVals, wantVals) {
 		t.Errorf("FilterOutDefaulted => vals %v, want %v", fVals, wantVals)
+	}
+}
+
+func TestBuildRowTokens_NoDefaults(t *testing.T) {
+	allCols := []string{"a", "b"}
+	vals := []interface{}{"foo", "bar"}
+	defaultCols := []string{}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(?, ?)"
+	wantArgs := []interface{}{"foo", "bar"}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens no defaults: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens no defaults: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_DefaultEmptyInt(t *testing.T) {
+	allCols := []string{"a", "b", "c"}
+	vals := []interface{}{"foo", 0, "baz"}
+	defaultCols := []string{"b"}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(?, DEFAULT, ?)"
+	wantArgs := []interface{}{"foo", "baz"}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens default empty int: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens default empty int: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_DefaultEmptyString(t *testing.T) {
+	allCols := []string{"x", "y"}
+	vals := []interface{}{"", "hello"}
+	defaultCols := []string{"x"}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(DEFAULT, ?)"
+	wantArgs := []interface{}{"hello"}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens default empty string: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens default empty string: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_DefaultEmptyPointerAndFloat(t *testing.T) {
+	var pt *time.Time = nil
+	allCols := []string{"a", "b", "c"}
+	vals := []interface{}{"v", pt, float64(0)}
+	defaultCols := []string{"b", "c"}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(?, DEFAULT, DEFAULT)"
+	wantArgs := []interface{}{"v"}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens default empty pointer/float: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens default empty pointer/float: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_DefaultNonEmptyPointer(t *testing.T) {
+	now := time.Now()
+	pt := &now
+
+	allCols := []string{"a", "b"}
+	vals := []interface{}{"", pt}
+	defaultCols := []string{"a", "b"}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(DEFAULT, ?)"
+	wantArgs := []interface{}{pt}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens default non-empty pointer: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens default non-empty pointer: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_OrderAndSpacing(t *testing.T) {
+	allCols := []string{"col1", "col2", "col3"}
+	vals := []interface{}{1, "", 3}
+	defaultCols := []string{"col2"}
+
+	rowSQL, _ := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	if !strings.HasPrefix(rowSQL, "(") || !strings.HasSuffix(rowSQL, ")") {
+		t.Errorf("BuildRowTokens order/spacing: rowSQL %q missing surrounding parens", rowSQL)
+	}
+	parts := strings.Split(strings.Trim(rowSQL, "()"), ", ")
+	if len(parts) != 3 {
+		t.Errorf("BuildRowTokens order/spacing: expected 3 tokens, got %v", parts)
+	}
+	if parts[0] != "?" || parts[1] != "DEFAULT" || parts[2] != "?" {
+		t.Errorf("BuildRowTokens order/spacing: got tokens %v, want [\"?\",\"DEFAULT\",\"?\"]", parts)
 	}
 }

@@ -108,6 +108,46 @@
 					"response": []
 				},
 				{
+					"name": "Bulk Add",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[{\n    \"name\": \"testing\",\n    \"age\": 30\n},\n    \"name\": \"testing\",\n    \"age\": 30\n}]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/bulk_add",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"bulk_add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Edit",
 					"request": {
 						"method": "PATCH",

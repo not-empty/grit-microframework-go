@@ -74,6 +74,7 @@ run go main.go
 | ------ | --------------------------- | -------------------------------------------|
 | POST   | `/example/add`              | Create a new record                        |
 | POST   | `/example/bulk`             | Fetch specific records by IDs              |
+| POST   | `/example/bulk_add`         | Create up to 25 records in the same request|
 | GET    | `/example/dead_detail/{id}` | Get a deleted record by ID                 |
 | GET    | `/example/dead_list`        | List deleted records (paginated)           |
 | DELETE | `/example/delete/{id}`      | Soft-delete a record by ID                 |

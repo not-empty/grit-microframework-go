@@ -1,5 +1,4 @@
 #!/bin/sh
-reset
 
 COVERAGE_DIR="./tests/coverage"
 COVERAGE_OUT="$COVERAGE_DIR/coverage-unit.out"

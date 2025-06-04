@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/not-empty/grit/app/helper"
@@ -539,10 +540,9 @@ func TestRepository_Raw_Success(t *testing.T) {
 	params := map[string]any{"name": "Alice"}
 
 	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
-	// args == []interface{}{"Alice"}
 
 	mock.ExpectQuery(regexp.QuoteMeta(convertedSQL)).
-		WithArgs(args[0]). // unpack the single argument
+		WithArgs(args[0]).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).
 			AddRow("1", "Alice"),
 		)
@@ -566,10 +566,9 @@ func TestRepository_Raw_QueryError(t *testing.T) {
 	params := map[string]any{"foo": "bar"}
 
 	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
-	// args == []interface{}{"bar"}
 
 	mock.ExpectQuery(regexp.QuoteMeta(convertedSQL)).
-		WithArgs(args[0]). // unpack again
+		WithArgs(args[0]).
 		WillReturnError(fmt.Errorf("db exploded"))
 
 	results, err := repo.Raw(rawQuery, params)
@@ -578,4 +577,97 @@ func TestRepository_Raw_QueryError(t *testing.T) {
 	require.Contains(t, err.Error(), "db exploded")
 
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkAdd_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	nowTime := time.Now().Truncate(time.Second)
+	now1 := helper.JSONTime(nowTime)
+	e1 := &models.Example{
+		ID:        "1",
+		Name:      "Alice",
+		Age:       25,
+		LastLogin: &now1,
+	}
+
+	e2 := &models.Example{
+		ID:        "2",
+		Name:      "Bob",
+		Age:       10,
+		LastLogin: nil,
+	}
+
+	sqlLiteral :=
+		`INSERT INTO example (id, name, age, last_login, created_at, updated_at, deleted_at) VALUES ` +
+			`(?, ?, ?, ?, ?, ?, ?), (?, ?, ?, DEFAULT, ?, ?, ?)`
+
+	pattern := regexp.QuoteMeta(sqlLiteral)
+
+	mock.ExpectExec(pattern).
+		WithArgs(
+			"1", "Alice", 25, now1, nil, nil, nil,
+			"2", "Bob", 10, nil, nil, nil,
+		).
+		WillReturnResult(sqlmock.NewResult(1, 2))
+
+	err = repo.BulkAdd([]*models.Example{e1, e2})
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkAdd_Error(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	e := &models.Example{ID: "x", Name: "Y", Age: 10, LastLogin: nil}
+
+	errorSQL := `INSERT INTO example (id, name, age, last_login, created_at, updated_at, deleted_at) VALUES ` +
+		`(?, ?, ?, DEFAULT, ?, ?, ?)`
+
+	pattern := regexp.QuoteMeta(errorSQL)
+
+	mock.ExpectExec(pattern).
+		WithArgs("x", "Y", 10, nil, nil, nil).
+		WillReturnError(fmt.Errorf("insert failed"))
+
+	err = repo.BulkAdd([]*models.Example{e})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insert failed")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulkAdd_EmptySlicePanics(t *testing.T) {
+	db, _, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	require.Panics(t, func() {
+		_ = repo.BulkAdd([]*models.Example{})
+	})
+}
+
+func TestBuildRowTokens_ExampleModel(t *testing.T) {
+	allCols := []string{"id", "name", "age", "last_login", "created_at", "updated_at", "deleted_at"}
+	defaultCols := []string{"last_login"}
+
+	nowTime := time.Now().Truncate(time.Second)
+	now := helper.JSONTime(nowTime)
+	vals1 := []interface{}{"A", "B", 5, &now, nil, nil, nil}
+	rowSQL1, args1 := helper.BuildRowTokens(allCols, vals1, defaultCols)
+	require.Equal(t, "(?, ?, ?, ?, ?, ?, ?)", rowSQL1)
+	require.Equal(t, []interface{}{"A", "B", 5, &now, nil, nil, nil}, args1)
+
+	vals2 := []interface{}{"X", "Y", 0, nil, nil, nil, nil}
+	rowSQL2, args2 := helper.BuildRowTokens(allCols, vals2, defaultCols)
+	require.Equal(t, "(?, ?, ?, DEFAULT, ?, ?, ?)", rowSQL2)
+	require.Equal(t, []interface{}{"X", "Y", 0, nil, nil, nil}, args2)
 }

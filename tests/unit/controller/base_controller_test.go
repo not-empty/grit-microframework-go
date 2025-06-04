@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +92,8 @@ type fakeRepository struct {
 
 	rawResult []map[string]any
 	rawError  error
+
+	bulkAddError error
 }
 
 func (fr *fakeRepository) New() *fakeModel {
@@ -140,6 +143,10 @@ func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filter
 
 func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string]any, error) {
 	return fr.rawResult, fr.rawError
+}
+
+func (fr *fakeRepository) BulkAdd(m []*fakeModel) error {
+	return fr.bulkAddError
 }
 
 type fakeULIDGenerator struct{}
@@ -1376,4 +1383,216 @@ func TestBaseController_Raw_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 	require.Equal(t, "1", out[0]["id"])
+}
+
+func TestBaseController_BulkAdd_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/fake/bulk_add", nil)
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+
+	res := rr.Result()
+	if res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("Expected 405 Method Not Allowed, got %d", res.StatusCode)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "Method not allowed") {
+		t.Errorf("Expected response to contain 'Method not allowed', got %q", string(body))
+	}
+}
+
+func TestBaseController_BulkAdd_InvalidJSON(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBufferString("{"))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request for invalid JSON, got %d", res.StatusCode)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "Invalid JSON payload") {
+		t.Errorf("Expected response to contain 'Invalid JSON payload', got %q", string(body))
+	}
+}
+
+func TestBaseController_BulkAdd_TooFewOrTooManyItems(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	req1 := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBufferString("[]"))
+	rr1 := httptest.NewRecorder()
+	bc.BulkAdd(rr1, req1)
+	res1 := rr1.Result()
+	if res1.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 for empty array, got %d", res1.StatusCode)
+	}
+	body1, _ := io.ReadAll(res1.Body)
+	if !strings.Contains(string(body1), "Payload must contain between 1 and 25 items") {
+		t.Errorf("Expected 'Payload must contain between 1 and 25 items', got %q", string(body1))
+	}
+
+	var many []map[string]interface{}
+	for i := 0; i < 26; i++ {
+		many = append(many, map[string]interface{}{"field": "x"})
+	}
+	payload26, _ := json.Marshal(many)
+	req2 := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(payload26))
+	rr2 := httptest.NewRecorder()
+	bc.BulkAdd(rr2, req2)
+	res2 := rr2.Result()
+	if res2.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected 400 for >25 items, got %d", res2.StatusCode)
+	}
+	body2, _ := io.ReadAll(res2.Body)
+	if !strings.Contains(string(body2), "Payload must contain between 1 and 25 items") {
+		t.Errorf("Expected 'Payload must contain between 1 and 25 items', got %q", string(body2))
+	}
+}
+
+func TestBaseController_BulkAdd_ValidationFailure(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	payload := []map[string]interface{}{
+		{"field": "ok"},
+		{"field": ""},
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("Expected 422 Unprocessable Entity on validation failure, got %d", res.StatusCode)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "Field 'Field' failed") {
+		t.Errorf("Expected validation error message, got %q", string(body))
+	}
+}
+
+func TestBaseController_BulkAdd_ULIDGenerationError(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &errorULIDGen{},
+	}
+
+	payload := []map[string]interface{}{
+		{"field": "value1"},
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Errorf("Expected 500 on ULID error, got %d", res.StatusCode)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "ULID generation failed") {
+		t.Errorf("Expected 'ULID generation failed', got %q", string(body))
+	}
+}
+
+func TestBaseController_BulkAdd_RepositoryError(t *testing.T) {
+	fr := &fakeRepository{
+		bulkAddError: errors.New("db down"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	payload := []map[string]interface{}{
+		{"field": "ok1"},
+		{"field": "ok2"},
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Errorf("Expected 500 on repository error, got %d", res.StatusCode)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), "Bulk insert failed") {
+		t.Errorf("Expected 'Bulk insert failed', got %q", string(body))
+	}
+}
+
+func TestBaseController_BulkAdd_Success(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	payload := []map[string]interface{}{
+		{"field": "alpha"},
+		{"field": "beta"},
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusCreated {
+		t.Errorf("Expected 201 Created on success, got %d", res.StatusCode)
+	}
+
+	var respBody map[string][]string
+	if err := json.NewDecoder(res.Body).Decode(&respBody); err != nil {
+		t.Fatalf("Unexpected error decoding response JSON: %v", err)
+	}
+	ids, ok := respBody["ids"]
+	if !ok {
+		t.Fatalf("Expected 'ids' key in response")
+	}
+	if len(ids) != 2 {
+		t.Errorf("Expected 2 generated IDs, got %d", len(ids))
+	}
+	for _, id := range ids {
+		if id != "fake-ulid" {
+			t.Errorf("Expected generated ID to be 'fake-ulid', got %q", id)
+		}
+	}
 }
