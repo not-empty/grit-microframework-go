@@ -121,6 +121,17 @@ func TestExampleEndpoints(t *testing.T) {
 		assert.Len(t, data, 1)
 	})
 
+	t.Run("ListOne - List one", func(t *testing.T) {
+		resp, err := http.Get(baseURL + "/example/list_one")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var data map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&data)
+		assert.NoError(t, err)
+		assert.Equal(t, "Example User", data["name"])
+	})
+
 	t.Run("Delete - Success", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodDelete, baseURL+"/example/delete/"+insertedID, nil)
 		client := &http.Client{}
@@ -152,14 +163,4 @@ func TestExampleEndpoints(t *testing.T) {
 		assert.NotEmpty(t, data)
 	})
 
-	t.Run("ListOne - List one", func(t *testing.T) {
-		resp, err := http.Get(baseURL + "/example/list_one")
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-		var data map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&data)
-		assert.NoError(t, err)
-		assert.Equal(t, "Example Name", data["name"])
-	})
 }

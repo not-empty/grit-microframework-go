@@ -70,3 +70,15 @@ func ValidateOrderBy(orderBy string, allowed []string) string {
 	}
 	return "id"
 }
+
+func EscapeMysqlField(field string) string {
+	return "`" + field + "`"
+}
+
+func EscapeMysqlFields(fields []string) []string {
+	escapedFields := make([]string, len(fields))
+	for i, field := range fields {
+		escapedFields[i] = EscapeMysqlField(field)
+	}
+	return escapedFields
+}

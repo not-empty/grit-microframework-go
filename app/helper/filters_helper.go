@@ -47,48 +47,49 @@ func BuildWhereClause(filters []Filter) (string, []interface{}) {
 	var args []interface{}
 
 	for _, f := range filters {
+		escapadField := EscapeMysqlField(f.Field)
 		switch f.Operator {
 		case "eql":
-			clauses = append(clauses, fmt.Sprintf("%s = ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s = ?", escapadField))
 			args = append(args, f.Value)
 		case "neq":
-			clauses = append(clauses, fmt.Sprintf("%s != ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s != ?", escapadField))
 			args = append(args, f.Value)
 		case "lik":
-			clauses = append(clauses, fmt.Sprintf("%s LIKE ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s LIKE ?", escapadField))
 			args = append(args, "%"+f.Value+"%")
 		case "gt":
-			clauses = append(clauses, fmt.Sprintf("%s > ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s > ?", escapadField))
 			args = append(args, f.Value)
 		case "lt":
-			clauses = append(clauses, fmt.Sprintf("%s < ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s < ?", escapadField))
 			args = append(args, f.Value)
 		case "gte":
-			clauses = append(clauses, fmt.Sprintf("%s >= ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s >= ?", escapadField))
 			args = append(args, f.Value)
 		case "lte":
-			clauses = append(clauses, fmt.Sprintf("%s <= ?", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s <= ?", escapadField))
 			args = append(args, f.Value)
 		case "btw":
 			rangeParts := strings.Split(f.Value, ",")
 			if len(rangeParts) == 2 {
-				clauses = append(clauses, fmt.Sprintf("%s BETWEEN ? AND ?", f.Field))
+				clauses = append(clauses, fmt.Sprintf("%s BETWEEN ? AND ?", escapadField))
 				args = append(args, rangeParts[0], rangeParts[1])
 			}
 		case "nul":
 			if f.Value == "true" {
-				clauses = append(clauses, fmt.Sprintf("%s IS NULL", f.Field))
+				clauses = append(clauses, fmt.Sprintf("%s IS NULL", escapadField))
 			} else {
-				clauses = append(clauses, fmt.Sprintf("%s IS NOT NULL", f.Field))
+				clauses = append(clauses, fmt.Sprintf("%s IS NOT NULL", escapadField))
 			}
 		case "nnu":
-			clauses = append(clauses, fmt.Sprintf("%s IS NOT NULL", f.Field))
+			clauses = append(clauses, fmt.Sprintf("%s IS NOT NULL", escapadField))
 		case "in":
 			inParts := strings.Split(f.Value, ",")
 			if len(inParts) > 0 {
 				placeholders := strings.Repeat("?,", len(inParts))
 				placeholders = strings.TrimRight(placeholders, ",")
-				clauses = append(clauses, fmt.Sprintf("%s IN (%s)", f.Field, placeholders))
+				clauses = append(clauses, fmt.Sprintf("%s IN (%s)", escapadField, placeholders))
 				for _, val := range inParts {
 					args = append(args, strings.TrimSpace(val))
 				}

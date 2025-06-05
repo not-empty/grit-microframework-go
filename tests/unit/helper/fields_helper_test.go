@@ -94,3 +94,13 @@ func TestValidateOrderBy_NotAllowed(t *testing.T) {
 	allowed := []string{"name", "email"}
 	require.Equal(t, "id", helper.ValidateOrderBy("created_at", allowed))
 }
+
+func TestEscapeMysqlField(t *testing.T) {
+	require.Equal(t, "`name`", helper.EscapeMysqlField("name"))
+}
+
+func TestEscapeMysqlFields(t *testing.T) {
+	fields := []string{"name", "email"}
+
+	require.Equal(t, []string{"`name`", "`email`"}, helper.EscapeMysqlFields(fields))
+}
