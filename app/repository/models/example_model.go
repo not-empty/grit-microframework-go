@@ -29,7 +29,7 @@ func (m *Example) Schema() map[string]string {
 }
 
 func (m *Example) TableName() string {
-	return "example"
+	return "`example`"
 }
 
 func (m *Example) Columns() []string {
