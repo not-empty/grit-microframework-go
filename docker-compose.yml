@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8001:8001"
+      - "8002:8001"
     ulimits:
       nofile:
         soft: "65536"
@@ -27,7 +27,7 @@ services:
       MYSQL_PASSWORD: password
       MYSQL_ROOT_HOST: "%"
     ports:
-      - "3306:3306"
+      - "3309:3306"
     volumes:
       - grit-data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0

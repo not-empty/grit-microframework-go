@@ -30,7 +30,7 @@ func (m *{{.Domain}}) Schema() map[string]string {
 }
 
 func (m *{{.Domain}}) TableName() string {
-	return "{{.DomainLower}}"
+	return "`{{.DomainLower}}`"
 }
 
 func (m *{{.Domain}}) Columns() []string {

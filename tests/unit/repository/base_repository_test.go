@@ -28,7 +28,7 @@ func TestAdd(t *testing.T) {
 	example := &models.Example{ID: "1", Name: "John", Age: 30}
 	repo := newTestRepo(db)
 
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO example (id, name, age, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)`)).
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `example` (`id`, `name`, `age`, `created_at`, `updated_at`, `deleted_at`) VALUES (?, ?, ?, ?, ?, ?)")).
 		WithArgs(example.ID, example.Name, example.Age, nil, nil, nil).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -44,11 +44,11 @@ func TestEdit(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	mock.ExpectExec(regexp.QuoteMeta(`UPDATE example SET name = ? WHERE id = ? AND deleted_at IS NULL`)).
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE `example` SET `name` = ? WHERE `id` = ? AND `deleted_at` IS NULL")).
 		WithArgs("Jane", "1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.Edit("example", "id", "1", []string{"name"}, []interface{}{"Jane"})
+	err = repo.Edit("`example`", "id", "1", []string{"name"}, []interface{}{"Jane"})
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -60,7 +60,7 @@ func TestDelete(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	mock.ExpectExec(regexp.QuoteMeta(`UPDATE example SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`)).
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE `example` SET `deleted_at` = NOW() WHERE `id` = ? AND `deleted_at` IS NULL")).
 		WithArgs("1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -77,7 +77,7 @@ func TestDetail(t *testing.T) {
 	repo := newTestRepo(db)
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id = ? AND deleted_at IS NULL LIMIT 1`)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT `id`, `name`, `age` FROM `example` WHERE `id` = ? AND `deleted_at` IS NULL LIMIT 1")).
 		WithArgs("1").
 		WillReturnRows(rows)
 
@@ -95,7 +95,7 @@ func TestDeadDetail(t *testing.T) {
 	repo := newTestRepo(db)
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id = ? AND deleted_at IS NOT NULL LIMIT 1`)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT `id`, `name`, `age` FROM `example` WHERE `id` = ? AND `deleted_at` IS NOT NULL LIMIT 1")).
 		WithArgs("1").
 		WillReturnRows(rows)
 
@@ -123,7 +123,7 @@ func TestDetail_Error(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id = ? AND deleted_at IS NULL LIMIT 1`)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT `id`, `name`, `age` FROM `example` WHERE `id` = ? AND `deleted_at` IS NULL LIMIT 1")).
 		WithArgs("non-existent").
 		WillReturnError(sql.ErrConnDone)
 
@@ -140,7 +140,7 @@ func TestDetaill_NoRows(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, name, age FROM example WHERE id = ? AND deleted_at IS NULL LIMIT 1`)).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT `id`, `name`, `age` FROM `example` WHERE `id` = ? AND `deleted_at` IS NULL LIMIT 1")).
 		WithArgs("not-found").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}))
 
@@ -159,7 +159,7 @@ func TestList(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs(10).
 		WillReturnRows(rows)
@@ -180,7 +180,7 @@ func TestDeadList(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NOT NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NOT NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs(10).
 		WillReturnRows(rows)
@@ -201,7 +201,7 @@ func TestListWithFilters(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `name` = ? AND `deleted_at` IS NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs("John", 10).
 		WillReturnRows(rows)
@@ -223,7 +223,7 @@ func TestDeadListWithFilters(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE name = ? AND deleted_at IS NOT NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `name` = ? AND `deleted_at` IS NOT NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs("John", 10).
 		WillReturnRows(rows)
@@ -244,7 +244,7 @@ func TestList_QueryError(t *testing.T) {
 	repo := newTestRepo(db)
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs(10).
 		WillReturnError(sql.ErrConnDone)
@@ -273,7 +273,7 @@ func TestList_ScanError(t *testing.T) {
 	repo := newTestRepo(db)
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs(10).
 		WillReturnRows(rows)
@@ -294,7 +294,7 @@ func TestBulk(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
@@ -328,7 +328,7 @@ func TestBulk_QueryError(t *testing.T) {
 
 	expectedErr := sql.ErrConnDone
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs("1", "2", 10).
 		WillReturnError(expectedErr)
@@ -356,7 +356,7 @@ func TestBulk_ScanError(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
@@ -382,9 +382,9 @@ func TestList_WithCursor(t *testing.T) {
 	}
 
 	query := regexp.QuoteMeta(
-		`SELECT id, name, age FROM example ` +
-			`WHERE deleted_at IS NULL AND ( id < ? OR ( id = ? AND id < ? ) ) ` +
-			`ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` " +
+			"WHERE `deleted_at` IS NULL AND ( `id` < ? OR ( `id` = ? AND `id` < ? ) ) " +
+			"ORDER BY `id` DESC LIMIT ?",
 	)
 
 	mock.ExpectQuery(query).
@@ -413,9 +413,9 @@ func TestBulk_WithCursor(t *testing.T) {
 	ids := []string{"1", "2"}
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL `+
-			`AND (id > ? OR (id = ? AND id > ?)) `+
-			`AND id IN (?, ?) ORDER BY id ASC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL "+
+			"AND (`id` > ? OR (`id` = ? AND `id` > ?)) "+
+			"AND `id` IN (?, ?) ORDER BY `id` ASC LIMIT ?",
 	)).
 		WithArgs(
 			cursor.LastValue,
@@ -449,9 +449,9 @@ func TestBulk_WithCursorDesc(t *testing.T) {
 	ids := []string{"1", "2"}
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL `+
-			`AND (id < ? OR (id = ? AND id < ?)) `+
-			`AND id IN (?, ?) ORDER BY id DESC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL "+
+			"AND (`id` < ? OR (`id` = ? AND `id` < ?)) "+
+			"AND `id` IN (?, ?) ORDER BY `id` DESC LIMIT ?",
 	)).
 		WithArgs(
 			cursor.LastValue,
@@ -482,7 +482,7 @@ func TestListOne_Success(t *testing.T) {
 
 	rows := sqlmock.NewRows(fields).AddRow("1", "John", 30)
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnRows(rows)
 
 	result, err := repo.ListOne("id", "ASC", fields, nil)
@@ -500,7 +500,7 @@ func TestListOne_Empty(t *testing.T) {
 	fields := []string{"id", "name", "age"}
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnRows(sqlmock.NewRows(fields))
 
 	result, err := repo.ListOne("id", "ASC", fields, nil)
@@ -519,7 +519,7 @@ func TestListOne_Error(t *testing.T) {
 
 	expErr := sql.ErrConnDone
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT id, name, age FROM example WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ?`,
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnError(expErr)
 
 	result, err := repo.ListOne("id", "ASC", fields, nil)
@@ -536,7 +536,7 @@ func TestRepository_Raw_Success(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	rawQuery := "SELECT id, name FROM example WHERE name = :name"
+	rawQuery := "SELECT id, name FROM `example` WHERE name = :name"
 	params := map[string]any{"name": "Alice"}
 
 	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
@@ -562,7 +562,7 @@ func TestRepository_Raw_QueryError(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	rawQuery := "SELECT id FROM example WHERE foo = :foo"
+	rawQuery := "SELECT id FROM `example` WHERE foo = :foo"
 	params := map[string]any{"foo": "bar"}
 
 	convertedSQL, args := helper.PrepareRawQuery(rawQuery, params)
@@ -603,8 +603,8 @@ func TestBulkAdd_Success(t *testing.T) {
 	}
 
 	sqlLiteral :=
-		`INSERT INTO example (id, name, age, last_login, created_at, updated_at, deleted_at) VALUES ` +
-			`(?, ?, ?, ?, ?, ?, ?), (?, ?, ?, DEFAULT, ?, ?, ?)`
+		"INSERT INTO `example` (`id`, `name`, `age`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
+			"(?, ?, ?, ?, ?, ?, ?), (?, ?, ?, DEFAULT, ?, ?, ?)"
 
 	pattern := regexp.QuoteMeta(sqlLiteral)
 
@@ -629,8 +629,8 @@ func TestBulkAdd_Error(t *testing.T) {
 
 	e := &models.Example{ID: "x", Name: "Y", Age: 10, LastLogin: nil}
 
-	errorSQL := `INSERT INTO example (id, name, age, last_login, created_at, updated_at, deleted_at) VALUES ` +
-		`(?, ?, ?, DEFAULT, ?, ?, ?)`
+	errorSQL := "INSERT INTO `example` (`id`, `name`, `age`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
+		"(?, ?, ?, DEFAULT, ?, ?, ?)"
 
 	pattern := regexp.QuoteMeta(errorSQL)
 

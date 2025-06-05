@@ -26,7 +26,7 @@ func addRecord(db *sql.DB, m BaseModel) error {
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
 		m.TableName(),
-		strings.Join(finalCols, ", "),
+		strings.Join(helper.EscapeMysqlFields(finalCols), ", "),
 		strings.Join(placeholders, ", "),
 	)
 
@@ -49,11 +49,11 @@ func bulkRecords(
 		return nil, nil
 	}
 
-	selected := helper.FilterFields(fields, helper.MapKeys(schema))
-	orderBy = helper.ValidateOrderBy(orderBy, helper.MapKeys(schema))
+	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
+	orderBy = helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
 	order = helper.ValidateOrder(order)
 
-	where := []string{"deleted_at IS NULL"}
+	where := []string{"`deleted_at` IS NULL"}
 
 	if pageCursor != nil {
 		op := ">"
@@ -61,7 +61,7 @@ func bulkRecords(
 			op = "<"
 		}
 		where = append(where, fmt.Sprintf(
-			"(%s %s ? OR (%s = ? AND %s %s ?))",
+			"(%s %s ? OR (%s = ? AND `%s` %s ?))",
 			orderBy, op,
 			orderBy, pk, op,
 		))
@@ -72,7 +72,7 @@ func bulkRecords(
 		placeholders[i] = "?"
 	}
 	where = append(where,
-		fmt.Sprintf("%s IN (%s)", pk, strings.Join(placeholders, ", ")),
+		fmt.Sprintf("`%s` IN (%s)", pk, strings.Join(placeholders, ", ")),
 	)
 
 	args := []interface{}{}
@@ -135,7 +135,7 @@ func bulkAddRecords(db *sql.DB, m []BaseModel) error {
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES %s",
 		table,
-		strings.Join(allCols, ", "),
+		strings.Join(helper.EscapeMysqlFields(allCols), ", "),
 		strings.Join(rowsSQL, ", "),
 	)
 
@@ -145,7 +145,7 @@ func bulkAddRecords(db *sql.DB, m []BaseModel) error {
 
 func deleteRecord(db *sql.DB, table, pk string, pkVal interface{}) error {
 	query := fmt.Sprintf(
-		"UPDATE %s SET deleted_at = NOW() WHERE %s = ? AND deleted_at IS NULL",
+		"UPDATE %s SET `deleted_at` = NOW() WHERE `%s` = ? AND `deleted_at` IS NULL",
 		table,
 		pk,
 	)
@@ -160,11 +160,11 @@ func editRecord(db *sql.DB, table, pk string, pkVal interface{}, cols []string, 
 
 	setParts := make([]string, len(cols))
 	for i, col := range cols {
-		setParts[i] = fmt.Sprintf("%s = ?", col)
+		setParts[i] = fmt.Sprintf("`%s` = ?", col)
 	}
 
 	query := fmt.Sprintf(
-		"UPDATE %s SET %s WHERE %s = ? AND deleted_at IS NULL",
+		"UPDATE %s SET %s WHERE `%s` = ? AND `deleted_at` IS NULL",
 		table,
 		strings.Join(setParts, ", "),
 		pk,
@@ -176,14 +176,14 @@ func editRecord(db *sql.DB, table, pk string, pkVal interface{}, cols []string, 
 }
 
 func getRecord(db *sql.DB, id interface{}, schema map[string]string, table string, pk string, fields []string, deleted bool) (map[string]any, error) {
-	selected := helper.FilterFields(fields, helper.MapKeys(schema))
-	condition := "deleted_at IS NULL"
+	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
+	condition := "`deleted_at` IS NULL"
 	if deleted {
-		condition = "deleted_at IS NOT NULL"
+		condition = "`deleted_at` IS NOT NULL"
 	}
 
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s WHERE %s = ? AND %s LIMIT 1",
+		"SELECT %s FROM %s WHERE `%s` = ? AND %s LIMIT 1",
 		strings.Join(selected, ", "),
 		table,
 		pk,
@@ -213,22 +213,22 @@ func listRecords(
 	filters []helper.Filter,
 	deleted bool,
 ) ([]map[string]any, error) {
-	selected := helper.FilterFields(fields, helper.MapKeys(schema))
-	orderBy = helper.ValidateOrderBy(orderBy, helper.MapKeys(schema))
+	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
+	orderBy = helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
 	order = helper.ValidateOrder(order)
 
 	whereClause, args := helper.BuildWhereClause(filters)
 	if deleted {
 		if whereClause == "" {
-			whereClause = "WHERE deleted_at IS NOT NULL"
+			whereClause = "WHERE `deleted_at` IS NOT NULL"
 		} else {
-			whereClause += " AND deleted_at IS NOT NULL"
+			whereClause += " AND `deleted_at` IS NOT NULL"
 		}
 	} else {
 		if whereClause == "" {
-			whereClause = "WHERE deleted_at IS NULL"
+			whereClause = "WHERE `deleted_at` IS NULL"
 		} else {
-			whereClause += " AND deleted_at IS NULL"
+			whereClause += " AND `deleted_at` IS NULL"
 		}
 	}
 
@@ -238,7 +238,7 @@ func listRecords(
 			op = "<"
 		}
 		whereClause += fmt.Sprintf(
-			" AND ( %s %s ? OR ( %s = ? AND id %s ? ) )",
+			" AND ( %s %s ? OR ( %s = ? AND `id` %s ? ) )",
 			orderBy, op,
 			orderBy, op,
 		)
