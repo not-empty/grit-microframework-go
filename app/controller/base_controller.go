@@ -44,12 +44,16 @@ func (bc *BaseController[T]) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := bc.ULIDGen.Generate(0)
-	if err != nil {
-		helper.JSONError(w, http.StatusInternalServerError, "ULID error", err)
-		return
+	id := m.PrimaryKeyValue().(string)
+	if helper.IsEmptyValue(id) {
+		var err error
+		id, err = bc.ULIDGen.Generate(0)
+		if err != nil {
+			helper.JSONError(w, http.StatusInternalServerError, "ULID error", err)
+			return
+		}
+		bc.SetPK(m, id)
 	}
-	bc.SetPK(m, id)
 
 	now := time.Now()
 	if c, ok := any(m).(repository.Creatable); ok {
@@ -124,12 +128,18 @@ func (bc *BaseController[T]) BulkAdd(w http.ResponseWriter, r *http.Request) {
 		if err := helper.ValidatePayload(w, m); err != nil {
 			return
 		}
-		id, err := bc.ULIDGen.Generate(0)
-		if err != nil {
-			helper.JSONError(w, http.StatusInternalServerError, "ULID generation failed", err)
-			return
+
+		id := m.PrimaryKeyValue().(string)
+		if helper.IsEmptyValue(id) {
+			var err error
+			id, err = bc.ULIDGen.Generate(0)
+			if err != nil {
+				helper.JSONError(w, http.StatusInternalServerError, "ULID generation failed", err)
+				return
+			}
+			bc.SetPK(m, id)
 		}
-		bc.SetPK(m, id)
+
 		generatedIDs = append(generatedIDs, id)
 		if c, ok := any(m).(repository.Creatable); ok {
 			c.SetCreatedAt(now)

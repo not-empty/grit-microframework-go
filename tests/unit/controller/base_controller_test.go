@@ -445,6 +445,44 @@ func TestBaseController_Add(t *testing.T) {
 	require.Equal(t, "test value", fr.insertedModel.Field, "The model field should match the input payload")
 }
 
+func TestBaseController_AddWithId(t *testing.T) {
+	fr := &fakeRepository{}
+
+	setPK := func(m *fakeModel, id string) {
+		m.ID = id
+	}
+
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   setPK,
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	payload := map[string]string{"id": "myId", "field": "test value"}
+	payloadBytes, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/fake/add", bytes.NewBuffer(payloadBytes))
+	rr := httptest.NewRecorder()
+
+	bc.Add(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusCreated, res.StatusCode, "Expected status 201 Created")
+
+	var respBody map[string]string
+	err = json.NewDecoder(res.Body).Decode(&respBody)
+	require.NoError(t, err)
+	id, ok := respBody["id"]
+	require.True(t, ok, "Response should contain an 'id' field")
+	require.NotEmpty(t, id, "The 'id' field should not be empty")
+
+	require.NotNil(t, fr.insertedModel, "Expected the model to be inserted")
+	require.Equal(t, id, "myId", "The inserted model ID should match the payload id")
+	require.Equal(t, "test value", fr.insertedModel.Field, "The model field should match the input payload")
+}
+
 func TestBaseController_Add_MethodNotAllowed(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
@@ -1594,5 +1632,46 @@ func TestBaseController_BulkAdd_Success(t *testing.T) {
 		if id != "fake-ulid" {
 			t.Errorf("Expected generated ID to be 'fake-ulid', got %q", id)
 		}
+	}
+}
+
+func TestBaseController_BulkAddWithId_Success(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:    fr,
+		Prefix:  "/fake",
+		SetPK:   func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &fakeULIDGenerator{},
+	}
+
+	payload := []map[string]interface{}{
+		{"id": "myId", "field": "alpha"},
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBuffer(bodyBytes))
+	rr := httptest.NewRecorder()
+
+	bc.BulkAdd(rr, req)
+	res := rr.Result()
+	if res.StatusCode != http.StatusCreated {
+		t.Errorf("Expected 201 Created on success, got %d", res.StatusCode)
+	}
+
+	var respBody map[string][]string
+	if err := json.NewDecoder(res.Body).Decode(&respBody); err != nil {
+		t.Fatalf("Unexpected error decoding response JSON: %v", err)
+	}
+
+	ids, ok := respBody["ids"]
+	if !ok {
+		t.Fatalf("Expected 'ids' key in response")
+	}
+
+	if len(ids) != 1 {
+		t.Errorf("Expected 1 generated IDs, got %d", len(ids))
+	}
+
+	if ids[0] != "myId" {
+		t.Errorf("Expected generated ID to be 'myId', got %q", ids[0])
 	}
 }
