@@ -288,6 +288,12 @@ Generated files:
 
 > Generated code for new routes will counts toward coverage—tests since they are new logic.
 
+## Adding a Record with manual ID
+
+You can add a new record by sending a `POST` request to `/example/add`. By default, the API will generate a unique ID automatically.
+
+However, if you prefer to use a custom ID, you can include the `id` field in the request body. In that case, the API will use the provided ID and skip the automatic ID generation.
+
 ## Validation
 
 You can add validation in fields including the validation statement in models or in the fields comments in the DDL file before generating the domain:
