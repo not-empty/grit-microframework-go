@@ -21,7 +21,10 @@ func RegisterRawQueries(table string, queries map[string]string) {
 func GetRawQuery(table, name string) (string, bool) {
 	rawMu.RLock()
 	defer rawMu.RUnlock()
-	qm, found := rawQueries[table]
+
+	index := strings.ReplaceAll(table, "`", "")
+
+	qm, found := rawQueries[index]
 	if !found {
 		return "", false
 	}
