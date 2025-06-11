@@ -1,6 +1,6 @@
 package models
 
-import "github.com/not-empty/grit/app/helper"
+import "github.com/not-empty/grit-microframework-go/app/helper"
 
 func init() {
 	helper.RegisterRawQueries("example", map[string]string{

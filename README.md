@@ -9,7 +9,7 @@ GRIT is a minimalist microservice framework built in pure Go. Designed to simpli
 ### 1. Clone
 
 ```bash
-git clone https://github.com/not-empty/grit.git
+git clone https://github.com/not-empty/grit-microframework-go.git
 ```
 
 ### 2. Docker Compose
@@ -211,7 +211,7 @@ Allows execution of pre-registered raw SQL queries with named parameters. Querie
 ```golang
 package models
 
-import "github.com/not-empty/grit/app/helper"
+import "github.com/not-empty/grit-microframework-go/app/helper"
 
 func init() {
     helper.RegisterRawQueries("example", map[string]string{

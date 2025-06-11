@@ -14,11 +14,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	appctx "github.com/not-empty/grit/app/context"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
 
-	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/controller"
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/config"
+	"github.com/not-empty/grit-microframework-go/app/controller"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 	"github.com/stretchr/testify/require"
 )
 

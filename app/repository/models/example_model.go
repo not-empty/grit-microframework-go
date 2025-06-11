@@ -2,7 +2,7 @@ package models
 
 import (
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 	"time"
 )
 

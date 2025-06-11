@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	appcontext "github.com/not-empty/grit/app/context"
-	appmw "github.com/not-empty/grit/app/middleware"
+	appcontext "github.com/not-empty/grit-microframework-go/app/context"
+	appmw "github.com/not-empty/grit-microframework-go/app/middleware"
 
 	jwtmanager "github.com/not-empty/jwt-manager-go-lib"
 	jwtmock "github.com/not-empty/jwt-manager-go-lib/mock"

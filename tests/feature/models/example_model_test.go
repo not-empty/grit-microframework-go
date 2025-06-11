@@ -11,8 +11,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/not-empty/grit/app"
-	"github.com/not-empty/grit/app/repository/models"
+	"github.com/not-empty/grit-microframework-go/app"
+	"github.com/not-empty/grit-microframework-go/app/repository/models"
 )
 
 var baseURL string

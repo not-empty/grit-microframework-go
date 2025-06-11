@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/not-empty/grit/app/config"
+	"github.com/not-empty/grit-microframework-go/app/config"
 )
 
 func RecoverMiddleware(next http.Handler) http.Handler {

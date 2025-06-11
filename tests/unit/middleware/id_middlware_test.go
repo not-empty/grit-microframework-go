@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	appctx "github.com/not-empty/grit/app/context"
-	"github.com/not-empty/grit/app/middleware"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
+	"github.com/not-empty/grit-microframework-go/app/middleware"
 
 	ulidmock "github.com/not-empty/ulid-go-lib/mock"
 )

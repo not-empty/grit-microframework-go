@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/not-empty/grit/app"
+	"github.com/not-empty/grit-microframework-go/app"
 )
 
 func main() {

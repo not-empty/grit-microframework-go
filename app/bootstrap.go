@@ -5,13 +5,13 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
-	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/database"
-	"github.com/not-empty/grit/app/router"
+	"github.com/not-empty/grit-microframework-go/app/config"
+	"github.com/not-empty/grit-microframework-go/app/database"
+	"github.com/not-empty/grit-microframework-go/app/router"
 
-	_ "github.com/not-empty/grit/app/router/domains"
-	_ "github.com/not-empty/grit/app/router/registry"
-	_ "github.com/not-empty/grit/app/router/routes"
+	_ "github.com/not-empty/grit-microframework-go/app/router/domains"
+	_ "github.com/not-empty/grit-microframework-go/app/router/registry"
+	_ "github.com/not-empty/grit-microframework-go/app/router/routes"
 )
 
 func Bootstrap() {

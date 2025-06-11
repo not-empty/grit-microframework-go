@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/middleware"
+	"github.com/not-empty/grit-microframework-go/app/config"
+	"github.com/not-empty/grit-microframework-go/app/middleware"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/not-empty/grit/app/config"
+	"github.com/not-empty/grit-microframework-go/app/config"
 )
 
 type ErrorResponse struct {

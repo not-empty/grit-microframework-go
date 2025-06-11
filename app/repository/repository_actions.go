@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 )
 
 var ScanFunc = helper.GenericScanToMap

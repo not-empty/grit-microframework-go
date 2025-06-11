@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 )
 
 func ClosedChain(handler http.Handler) http.Handler {

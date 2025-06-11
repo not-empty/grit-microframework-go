@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 )
 
 type Sanitizable interface {

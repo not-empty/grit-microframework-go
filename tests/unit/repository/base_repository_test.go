@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/not-empty/grit/app/helper"
-	"github.com/not-empty/grit/app/repository"
-	"github.com/not-empty/grit/app/repository/models"
+	"github.com/not-empty/grit-microframework-go/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/repository"
+	"github.com/not-empty/grit-microframework-go/app/repository/models"
 	"github.com/stretchr/testify/require"
 )
 

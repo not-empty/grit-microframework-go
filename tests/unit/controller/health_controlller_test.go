@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/not-empty/grit/app/controller"
+	"github.com/not-empty/grit-microframework-go/app/controller"
 	"github.com/stretchr/testify/require"
 )
 

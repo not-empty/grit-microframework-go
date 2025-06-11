@@ -3,10 +3,10 @@ package domains
 import (
 	"database/sql"
 
-	"github.com/not-empty/grit/app/repository"
-	"github.com/not-empty/grit/app/repository/models"
-	"github.com/not-empty/grit/app/router/registry"
-	route "github.com/not-empty/grit/app/router/routes"
+	"github.com/not-empty/grit-microframework-go/app/repository"
+	"github.com/not-empty/grit-microframework-go/app/repository/models"
+	"github.com/not-empty/grit-microframework-go/app/router/registry"
+	route "github.com/not-empty/grit-microframework-go/app/router/routes"
 )
 
 func init() {

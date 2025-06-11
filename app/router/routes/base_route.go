@@ -3,9 +3,9 @@ package route
 import (
 	"net/http"
 
-	"github.com/not-empty/grit/app/controller"
-	"github.com/not-empty/grit/app/middleware"
-	"github.com/not-empty/grit/app/repository"
+	"github.com/not-empty/grit-microframework-go/app/controller"
+	"github.com/not-empty/grit-microframework-go/app/middleware"
+	"github.com/not-empty/grit-microframework-go/app/repository"
 )
 
 type BaseRoutes[T repository.BaseModel] struct {

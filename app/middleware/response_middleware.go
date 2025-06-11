@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 
-	appctx "github.com/not-empty/grit/app/context"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
 )
 
 type responseRecorder struct {

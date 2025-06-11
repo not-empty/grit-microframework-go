@@ -6,7 +6,7 @@ import (
 
 	"github.com/not-empty/ulid-go-lib"
 
-	appctx "github.com/not-empty/grit/app/context"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
 )
 
 func IdMiddlewareWithGenerator(gen ulid.Generator, next http.Handler) http.Handler {

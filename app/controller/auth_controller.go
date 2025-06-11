@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/config"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 
-	appctx "github.com/not-empty/grit/app/context"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
 
 	"github.com/not-empty/jwt-manager-go-lib"
 )

@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/not-empty/grit/app/config"
+	"github.com/not-empty/grit-microframework-go/app/config"
 )
 
 var JwtMiddlewareFunc = JwtMiddleware

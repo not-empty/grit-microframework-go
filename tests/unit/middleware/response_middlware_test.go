@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/not-empty/grit/app/helper"
-	"github.com/not-empty/grit/app/middleware"
+	"github.com/not-empty/grit-microframework-go/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/middleware"
 	"github.com/stretchr/testify/require"
 
-	appctx "github.com/not-empty/grit/app/context"
+	appctx "github.com/not-empty/grit-microframework-go/app/context"
 )
 
 func TestResponseMiddleware_InjectsHeadersAndBody(t *testing.T) {

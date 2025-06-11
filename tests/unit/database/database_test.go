@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/database"
+	"github.com/not-empty/grit-microframework-go/app/config"
+	"github.com/not-empty/grit-microframework-go/app/database"
 	"github.com/stretchr/testify/require"
 )
 

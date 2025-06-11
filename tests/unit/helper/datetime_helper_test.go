@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/not-empty/grit/app/helper"
+	"github.com/not-empty/grit-microframework-go/app/helper"
 )
 
 func TestUnmarshalJSON(t *testing.T) {
