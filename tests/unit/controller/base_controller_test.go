@@ -14,6 +14,8 @@ import (
 	"github.com/not-empty/grit/app/controller"
 	"github.com/not-empty/grit/app/helper"
 	"github.com/stretchr/testify/require"
+
+	ulidmock "github.com/not-empty/ulid-go-lib/mock"
 )
 
 type fakeModel struct {
@@ -147,60 +149,6 @@ func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string
 
 func (fr *fakeRepository) BulkAdd(m []*fakeModel) error {
 	return fr.bulkAddError
-}
-
-type fakeULIDGenerator struct{}
-
-func (f *fakeULIDGenerator) IsValidFormat(ulidStr string) bool {
-	return true
-}
-func (f *fakeULIDGenerator) GetTimeFromUlid(ulidStr string) (int64, error) {
-	return 0, nil
-}
-func (f *fakeULIDGenerator) GetDateFromUlid(ulidStr string) (string, error) {
-	return "2020-01-01 00:00:00", nil
-}
-func (f *fakeULIDGenerator) GetRandomnessFromString(ulidStr string) (string, error) {
-	return "", nil
-}
-func (f *fakeULIDGenerator) IsDuplicatedTime(t int64) bool {
-	return false
-}
-func (f *fakeULIDGenerator) HasIncrementLastRandChars(duplicateTime bool) bool {
-	return false
-}
-func (f *fakeULIDGenerator) Generate(t int64) (string, error) {
-	return "fake-ulid", nil
-}
-func (f *fakeULIDGenerator) DecodeTime(timePart string) (int64, error) {
-	return 0, nil
-}
-
-type errorULIDGen struct{}
-
-func (e *errorULIDGen) IsValidFormat(ulidStr string) bool {
-	return true
-}
-func (e *errorULIDGen) GetTimeFromUlid(ulidStr string) (int64, error) {
-	return 0, nil
-}
-func (e *errorULIDGen) GetDateFromUlid(ulidStr string) (string, error) {
-	return "", nil
-}
-func (e *errorULIDGen) GetRandomnessFromString(ulidStr string) (string, error) {
-	return "", nil
-}
-func (e *errorULIDGen) IsDuplicatedTime(t int64) bool {
-	return false
-}
-func (e *errorULIDGen) HasIncrementLastRandChars(duplicateTime bool) bool {
-	return false
-}
-func (e *errorULIDGen) Generate(t int64) (string, error) {
-	return "", errors.New("ULID error")
-}
-func (e *errorULIDGen) DecodeTime(timePart string) (int64, error) {
-	return 0, nil
 }
 
 func TestNewBaseController(t *testing.T) {
@@ -415,10 +363,14 @@ func TestBaseController_Add(t *testing.T) {
 	}
 
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:    fr,
-		Prefix:  "/fake",
-		SetPK:   setPK,
-		ULIDGen: &fakeULIDGenerator{},
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  setPK,
+		ULIDGen: &ulidmock.ULIDMock{
+			GenerateFunc: func(ts int64) (string, error) {
+				return "00000000000000000000000000000", nil
+			},
+		},
 	}
 
 	payload := map[string]string{"field": "test value"}
@@ -456,7 +408,7 @@ func TestBaseController_AddWithId(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   setPK,
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := map[string]string{"id": "myId", "field": "test value"}
@@ -491,7 +443,7 @@ func TestBaseController_Add_MethodNotAllowed(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/add", nil)
@@ -515,7 +467,7 @@ func TestBaseController_Add_InvalidJSON(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/add", bytes.NewBufferString("{"))
@@ -540,7 +492,7 @@ func TestBaseController_Add_InvalidPayload(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   setPK,
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := map[string]string{"field": ""}
@@ -580,7 +532,7 @@ func TestBaseController_Add_InsertError(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := map[string]string{"field": "test value"}
@@ -609,7 +561,11 @@ func TestBaseController_Add_ULIDGenerationError(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &errorULIDGen{},
+		ULIDGen: &ulidmock.ULIDMock{
+			GenerateFunc: func(ts int64) (string, error) {
+				return "", errors.New("ULID error")
+			},
+		},
 	}
 
 	payload := map[string]string{"field": "test value"}
@@ -637,7 +593,7 @@ func TestBaseController_Bulk_MethodNotAllowed(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/bulk", nil)
@@ -659,7 +615,7 @@ func TestBaseController_Bulk_InvalidJSON(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString("{"))
@@ -679,7 +635,7 @@ func TestBaseController_Bulk_EmptyIDs(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString(`{"ids": []}`))
@@ -701,7 +657,7 @@ func TestBaseController_Bulk_BulkGetError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/bulk", bytes.NewBufferString(`{"ids": ["1", "2"]}`))
@@ -787,7 +743,7 @@ func TestBaseController_DeadList_MethodNotAllowed(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/dead_list", nil)
@@ -807,7 +763,7 @@ func TestDeadList_ListError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/dead_list", nil)
@@ -827,7 +783,7 @@ func TestBaseController_Delete_MethodNotAllowed(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/delete/1", nil)
@@ -851,7 +807,7 @@ func TestBaseController_Delete_MissingId(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodDelete, "/fake/delete/", nil)
@@ -877,7 +833,7 @@ func TestBaseController_Delete_DeleteError(t *testing.T) {
 		SetPK: func(m *fakeModel, id string) {
 			m.ID = id
 		},
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodDelete, "/fake/delete/1", nil)
@@ -899,7 +855,7 @@ func TestBaseController_Detail_MethodNotAllowed(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/detail/1", nil)
@@ -919,7 +875,7 @@ func TestBaseController_Detail_MissingId(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/detail/", nil)
 	rr := httptest.NewRecorder()
@@ -940,7 +896,7 @@ func TestBaseController_Detail_GetError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/detail/1", nil)
 	rr := httptest.NewRecorder()
@@ -959,7 +915,7 @@ func TestBaseController_Edit_MethodNotAllowed(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/edit/1", nil)
@@ -979,7 +935,7 @@ func TestBaseController_Edit_MissingId(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/", bytes.NewBufferString(`{"field": "newValue"}`))
@@ -999,7 +955,7 @@ func TestBaseController_Edit_InvalidData(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString("{"))
@@ -1022,7 +978,7 @@ func TestBaseController_Edit_GetError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPatch, "/fake/edit/1", bytes.NewBufferString(`{"field": "newValue"}`))
@@ -1045,7 +1001,7 @@ func TestBaseController_Edit_UpdateError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 	patchData := map[string]interface{}{
 		"field": "newValue",
@@ -1069,7 +1025,7 @@ func TestBaseController_List_MethodNotAllowed(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 	req := httptest.NewRequest(http.MethodPost, "/fake/list", nil)
 	rr := httptest.NewRecorder()
@@ -1091,7 +1047,7 @@ func TestBaseController_List_ListError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/fake/list", nil)
 	rr := httptest.NewRecorder()
@@ -1111,7 +1067,7 @@ func TestBaseController_List_InvalidPageCursor(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/list?page_cursor=not-base64!", nil)
@@ -1132,7 +1088,7 @@ func TestBaseController_DeadList_InvalidPageCursor(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/dead_list?page_cursor=!!!", nil)
@@ -1155,7 +1111,7 @@ func TestBaseController_Bulk_InvalidPageCursor(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := map[string][]string{"ids": {"1"}}
@@ -1429,7 +1385,7 @@ func TestBaseController_BulkAdd_MethodNotAllowed(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/fake/bulk_add", nil)
@@ -1453,7 +1409,7 @@ func TestBaseController_BulkAdd_InvalidJSON(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBufferString("{"))
@@ -1476,7 +1432,7 @@ func TestBaseController_BulkAdd_TooFewOrTooManyItems(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	req1 := httptest.NewRequest(http.MethodPost, "/fake/bulk_add", bytes.NewBufferString("[]"))
@@ -1515,7 +1471,7 @@ func TestBaseController_BulkAdd_ValidationFailure(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := []map[string]interface{}{
@@ -1540,10 +1496,14 @@ func TestBaseController_BulkAdd_ValidationFailure(t *testing.T) {
 func TestBaseController_BulkAdd_ULIDGenerationError(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:    fr,
-		Prefix:  "/fake",
-		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &errorULIDGen{},
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &ulidmock.ULIDMock{
+			GenerateFunc: func(ts int64) (string, error) {
+				return "", errors.New("ULID error")
+			},
+		},
 	}
 
 	payload := []map[string]interface{}{
@@ -1572,7 +1532,7 @@ func TestBaseController_BulkAdd_RepositoryError(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := []map[string]interface{}{
@@ -1597,10 +1557,14 @@ func TestBaseController_BulkAdd_RepositoryError(t *testing.T) {
 func TestBaseController_BulkAdd_Success(t *testing.T) {
 	fr := &fakeRepository{}
 	bc := &controller.BaseController[*fakeModel]{
-		Repo:    fr,
-		Prefix:  "/fake",
-		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+		ULIDGen: &ulidmock.ULIDMock{
+			GenerateFunc: func(ts int64) (string, error) {
+				return "fake-ulid", nil
+			},
+		},
 	}
 
 	payload := []map[string]interface{}{
@@ -1641,7 +1605,7 @@ func TestBaseController_BulkAddWithId_Success(t *testing.T) {
 		Repo:    fr,
 		Prefix:  "/fake",
 		SetPK:   func(m *fakeModel, id string) { m.ID = id },
-		ULIDGen: &fakeULIDGenerator{},
+		ULIDGen: &ulidmock.ULIDMock{},
 	}
 
 	payload := []map[string]interface{}{

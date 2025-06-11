@@ -10,7 +10,8 @@ import (
 	appctx "github.com/not-empty/grit/app/context"
 
 	"github.com/not-empty/grit/app/config"
-	"github.com/not-empty/grit/app/util/jwt_manager"
+
+	"github.com/not-empty/jwt-manager-go-lib"
 )
 
 var NewJwtManager = func(secret, context string, expire, renew int64) jwt_manager.Manager {

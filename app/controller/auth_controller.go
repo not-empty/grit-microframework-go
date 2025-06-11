@@ -9,9 +9,10 @@ import (
 
 	"github.com/not-empty/grit/app/config"
 	"github.com/not-empty/grit/app/helper"
-	"github.com/not-empty/grit/app/util/jwt_manager"
 
 	appctx "github.com/not-empty/grit/app/context"
+
+	"github.com/not-empty/jwt-manager-go-lib"
 )
 
 type TokenConfig struct {

@@ -9,50 +9,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/not-empty/grit/app/context"
-	"github.com/not-empty/grit/app/middleware"
-	"github.com/not-empty/grit/app/util/jwt_manager"
+	appcontext "github.com/not-empty/grit/app/context"
+	appmw "github.com/not-empty/grit/app/middleware"
+
+	jwtmanager "github.com/not-empty/jwt-manager-go-lib"
+	jwtmock "github.com/not-empty/jwt-manager-go-lib/mock"
 )
 
-type MockJwtManager struct {
-	mock.Mock
-}
-
-func (m *MockJwtManager) IsValid(token string) (bool, error) {
-	args := m.Called(token)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockJwtManager) IsOnTime(token string) (bool, error) {
-	args := m.Called(token)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockJwtManager) DecodePayload(token string) (map[string]interface{}, error) {
-	args := m.Called(token)
-	return args.Get(0).(map[string]interface{}), args.Error(1)
-}
-
-func (m *MockJwtManager) TokenNeedsRefresh(token string) (bool, error) {
-	args := m.Called(token)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockJwtManager) Generate(aud, sub string, custom map[string]interface{}) string {
-	args := m.Called(aud, sub, custom)
-	return args.String(0)
-}
-
-func overrideJwt(mgr jwt_manager.Manager) func() {
-	original := middleware.NewJwtManager
-	middleware.NewJwtManager = func(secret, ctx string, expire, renew int64) jwt_manager.Manager {
+func overrideJwt(mgr jwtmanager.Manager) func() {
+	original := appmw.NewJwtManager
+	appmw.NewJwtManager = func(secret, ctx string, expire, renew int64) jwtmanager.Manager {
 		return mgr
 	}
 	return func() {
-		middleware.NewJwtManager = original
+		appmw.NewJwtManager = original
 	}
 }
 
@@ -82,18 +54,18 @@ func setupEnv() {
 }
 
 func TestDefaultNewJwtManager_IsCovered(t *testing.T) {
-	manager := middleware.NewJwtManager("my-secret", "ctx", 100, 100)
-	require.NotNil(t, manager)
+	mgr := appmw.NewJwtManager("my-secret", "ctx", 100, 100)
+	require.NotNil(t, mgr)
 }
 
 func TestJwtMiddleware_MissingHeaders(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	req := httptest.NewRequest("GET", "/protected", nil)
+	req := createReq("", "")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -105,16 +77,19 @@ func TestJwtMiddleware_InvalidToken(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "bad-token").Return(false, errors.New("invalid"))
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return false, errors.New("invalid")
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	req := createReq("bad-token", "ctx")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -126,17 +101,22 @@ func TestJwtMiddleware_ExpiredToken(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "expired").Return(true, nil)
-	mockJwt.On("IsOnTime", "expired").Return(false, errors.New("expired"))
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return false, errors.New("expired")
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	req := createReq("expired", "ctx")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -148,18 +128,25 @@ func TestJwtMiddleware_BadPayload(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "bad").Return(true, nil)
-	mockJwt.On("IsOnTime", "bad").Return(true, nil)
-	mockJwt.On("DecodePayload", "bad").Return(map[string]interface{}(nil), errors.New("oops"))
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		DecodePayloadFunc: func(token string) (map[string]interface{}, error) {
+			return nil, errors.New("oops")
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	req := createReq("bad", "ctx")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -171,20 +158,29 @@ func TestJwtMiddleware_InvalidContext(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "mismatch").Return(true, nil)
-	mockJwt.On("IsOnTime", "mismatch").Return(true, nil)
-	mockJwt.On("DecodePayload", "mismatch").Return(map[string]interface{}{
-		"aud": "wrong", "sub": "web", "exp": float64(time.Now().Unix() + 60),
-	}, nil)
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		DecodePayloadFunc: func(token string) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"aud": "wrong",
+				"sub": "web",
+				"exp": float64(time.Now().Unix() + 60),
+			}, nil
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	req := createReq("mismatch", "ctx")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -196,20 +192,28 @@ func TestJwtMiddleware_InvalidExpFormat(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "noexp").Return(true, nil)
-	mockJwt.On("IsOnTime", "noexp").Return(true, nil)
-	mockJwt.On("DecodePayload", "noexp").Return(map[string]interface{}{
-		"aud": "ctx", "sub": "api",
-	}, nil)
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		DecodePayloadFunc: func(token string) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"aud": "ctx",
+				"sub": "api",
+			}, nil
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	req := createReq("noexp", "ctx")
 	rr := httptest.NewRecorder()
 
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("should not be called")
 	}))
 	handler.ServeHTTP(rr, req)
@@ -221,23 +225,36 @@ func TestJwtMiddleware_TokenRefresh(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "refresh").Return(true, nil)
-	mockJwt.On("IsOnTime", "refresh").Return(true, nil)
-	mockJwt.On("DecodePayload", "refresh").Return(map[string]interface{}{
-		"aud": "ctx", "sub": "api", "exp": float64(time.Now().Unix() + 60),
-	}, nil)
-	mockJwt.On("TokenNeedsRefresh", "refresh").Return(true, nil)
-	mockJwt.On("Generate", "ctx", "api", mock.Anything).Return("new-token")
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		DecodePayloadFunc: func(token string) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"aud": "ctx",
+				"sub": "api",
+				"exp": float64(time.Now().Unix() + 60),
+			}, nil
+		},
+		TokenNeedsRefreshFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		GenerateFunc: func(aud, sub string, custom map[string]interface{}) string {
+			return "new-token"
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	called := false
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
-		token := r.Context().Value(context.JwtContextKey).(context.JwtTokenInfo)
-		require.Equal(t, "new-token", token.Token)
+		info := r.Context().Value(appcontext.JwtContextKey).(appcontext.JwtTokenInfo)
+		require.Equal(t, "new-token", info.Token)
 	}))
 
 	req := createReq("refresh", "ctx")
@@ -252,22 +269,33 @@ func TestJwtMiddleware_HappyPath(t *testing.T) {
 	setupEnv()
 	defer os.Clearenv()
 
-	mockJwt := new(MockJwtManager)
-	mockJwt.On("IsValid", "ok").Return(true, nil)
-	mockJwt.On("IsOnTime", "ok").Return(true, nil)
-	mockJwt.On("DecodePayload", "ok").Return(map[string]interface{}{
-		"aud": "ctx", "sub": "api", "exp": float64(time.Now().Unix() + 300),
-	}, nil)
-	mockJwt.On("TokenNeedsRefresh", "ok").Return(false, nil)
+	m := &jwtmock.JwtManagerMock{
+		IsValidFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		IsOnTimeFunc: func(token string) (bool, error) {
+			return true, nil
+		},
+		DecodePayloadFunc: func(token string) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"aud": "ctx",
+				"sub": "api",
+				"exp": float64(time.Now().Unix() + 300),
+			}, nil
+		},
+		TokenNeedsRefreshFunc: func(token string) (bool, error) {
+			return false, nil
+		},
+	}
 
-	restore := overrideJwt(mockJwt)
+	restore := overrideJwt(m)
 	defer restore()
 
 	called := false
-	handler := middleware.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := appmw.JwtMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
-		token := r.Context().Value(context.JwtContextKey).(context.JwtTokenInfo)
-		require.Equal(t, "ok", token.Token)
+		info := r.Context().Value(appcontext.JwtContextKey).(appcontext.JwtTokenInfo)
+		require.Equal(t, "ok", info.Token)
 	}))
 
 	req := createReq("ok", "ctx")

@@ -10,41 +10,9 @@ import (
 
 	appctx "github.com/not-empty/grit/app/context"
 	"github.com/not-empty/grit/app/middleware"
+
+	ulidmock "github.com/not-empty/ulid-go-lib/mock"
 )
-
-type errorULIDGenerator struct{}
-
-func (e *errorULIDGenerator) IsValidFormat(ulidStr string) bool {
-	return true
-}
-
-func (e *errorULIDGenerator) GetTimeFromUlid(ulidStr string) (int64, error) {
-	return 0, nil
-}
-
-func (e *errorULIDGenerator) GetDateFromUlid(ulidStr string) (string, error) {
-	return "", nil
-}
-
-func (e *errorULIDGenerator) GetRandomnessFromString(ulidStr string) (string, error) {
-	return "", nil
-}
-
-func (e *errorULIDGenerator) IsDuplicatedTime(t int64) bool {
-	return false
-}
-
-func (e *errorULIDGenerator) HasIncrementLastRandChars(duplicateTime bool) bool {
-	return false
-}
-
-func (e *errorULIDGenerator) Generate(t int64) (string, error) {
-	return "", errors.New("ULID generation error")
-}
-
-func (e *errorULIDGenerator) DecodeTime(timePart string) (int64, error) {
-	return 0, nil
-}
 
 func TestIdMiddleware_SetsRequestIdInContext(t *testing.T) {
 	var capturedRequestID string
@@ -67,17 +35,21 @@ func TestIdMiddleware_SetsRequestIdInContext(t *testing.T) {
 }
 
 func TestIdMiddleware_Fallback(t *testing.T) {
-	fakeGen := &errorULIDGenerator{}
+	fakeGen := &ulidmock.ULIDMock{
+		GenerateFunc: func(ts int64) (string, error) {
+			return "", errors.New("ULID generation error")
+		},
+	}
 
 	req := httptest.NewRequest("GET", "/some-path", nil)
 	rr := httptest.NewRecorder()
 
 	handler := middleware.IdMiddlewareWithGenerator(fakeGen, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Context().Value(appctx.RequestIDKey)
-		require.Equal(t, "unknown", id, "Expected fallback request ID to be 'unknown' when Generate returns an error")
+		require.Equal(t, "unknown", id, "Expected fallback request ID to be 'unknown'")
 		w.WriteHeader(http.StatusOK)
 	}))
 
 	handler.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	require.Equal(t, http.StatusOK, rr.Code)
 }
