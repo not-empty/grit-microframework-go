@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/not-empty/grit/app/util/ulid"
+	"github.com/not-empty/ulid-go-lib"
 
 	appctx "github.com/not-empty/grit/app/context"
 )

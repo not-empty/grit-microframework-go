@@ -7,7 +7,7 @@ import (
 
 	"github.com/not-empty/grit/app/helper"
 	"github.com/not-empty/grit/app/repository"
-	"github.com/not-empty/grit/app/util/ulid"
+	"github.com/not-empty/ulid-go-lib"
 )
 
 type BaseController[T repository.BaseModel] struct {
