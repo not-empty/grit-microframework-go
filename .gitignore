@@ -9,7 +9,7 @@ vendor/
 /config/tokens.json
 /tests/coverage/*
 !/tests/coverage/.gitkeep
-grit
+grit-microframework-go
 test-results.txt
 
 /build/
