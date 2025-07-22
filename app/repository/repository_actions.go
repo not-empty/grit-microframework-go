@@ -285,3 +285,13 @@ func rawRecords(db *sql.DB, _ map[string]string, sqlText string, args ...interfa
 
 	return helper.SimpleScanRows(helper.NewRowsAdapter(rows))
 }
+
+func undeleteRecord(db *sql.DB, table, pk string, pkVal interface{}) error {
+	query := fmt.Sprintf(
+		"UPDATE %s SET `deleted_at` = NULL WHERE `%s` = ? AND `deleted_at` IS NOT NULL",
+		table,
+		pk,
+	)
+	_, err := db.Exec(query, pkVal)
+	return err
+}
