@@ -517,6 +517,39 @@
 					},
 					"response": []
 				},
+				,
+				{
+					"name": "Undelete",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{X-TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Context",
+								"value": "{{CONTEXT}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://{{HOST}}:{{PORT}}/example/undelete/01JVJ890TBFBK5DZ7S19W4PYGR",
+							"protocol": "http",
+							"host": [
+								"{{HOST}}"
+							],
+							"port": "{{PORT}}",
+							"path": [
+								"example",
+								"undelete",
+								"01JVJ890TBFBK5DZ7S19W4PYGR"
+							]
+						}
+					},
+					"response": []
+				},
 				{
 					"name": "Dead List",
 					"request": {
