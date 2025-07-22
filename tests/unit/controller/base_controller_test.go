@@ -74,6 +74,9 @@ type fakeRepository struct {
 	deleteCalled bool
 	deleteError  error
 
+	undeleteCalled bool
+	undeleteError  error
+
 	getResult map[string]any
 	getError  error
 
@@ -116,6 +119,11 @@ func (fr *fakeRepository) Edit(table, pk string, pkVal interface{}, cols []strin
 
 func (fr *fakeRepository) Delete(m *fakeModel) error {
 	fr.deleteCalled = true
+	return fr.deleteError
+}
+
+func (fr *fakeRepository) Undelete(m *fakeModel) error {
+	fr.undeleteCalled = true
 	return fr.deleteError
 }
 
@@ -270,6 +278,23 @@ func TestBaseController_Delete(t *testing.T) {
 	res := rr.Result()
 	require.Equal(t, http.StatusNoContent, res.StatusCode)
 	require.True(t, fr.deleteCalled, "Expected Delete to be called in repository")
+}
+
+func TestBaseController_Undelete(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK:  func(m *fakeModel, id string) { m.ID = id },
+	}
+	req := httptest.NewRequest(http.MethodPatch, "/fake/undelete/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Undelete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusNoContent, res.StatusCode)
+	require.True(t, fr.undeleteCalled, "Expected Undelete to be called in repository")
 }
 
 func TestBaseController_Detail(t *testing.T) {
@@ -847,6 +872,80 @@ func TestBaseController_Delete_DeleteError(t *testing.T) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), "Delete error")
+}
+
+func TestBaseController_Undelete_MethodNotAllowed(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &ulidmock.ULIDMock{},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/fake/undelete/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Undelete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Method not allowed")
+}
+
+func TestBaseController_Undelete_MissingId(t *testing.T) {
+	fr := &fakeRepository{}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &ulidmock.ULIDMock{},
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/fake/undelete/", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Undelete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Missing Id")
+}
+
+func TestBaseController_Undelete_DeleteError(t *testing.T) {
+	fr := &fakeRepository{
+		deleteError: errors.New("delete error"),
+	}
+	bc := &controller.BaseController[*fakeModel]{
+		Repo:   fr,
+		Prefix: "/fake",
+		SetPK: func(m *fakeModel, id string) {
+			m.ID = id
+		},
+		ULIDGen: &ulidmock.ULIDMock{},
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/fake/undelete/1", nil)
+	rr := httptest.NewRecorder()
+
+	bc.Undelete(rr, req)
+
+	res := rr.Result()
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Undelete error")
 }
 
 func TestBaseController_Detail_MethodNotAllowed(t *testing.T) {

@@ -395,3 +395,26 @@ func (bc *BaseController[T]) Raw(w http.ResponseWriter, r *http.Request) {
 
 	helper.JSONResponse(w, http.StatusOK, results)
 }
+
+func (bc *BaseController[T]) Undelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		helper.JSONErrorSimple(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	id, err := helper.ExtractID(r.URL.Path, bc.Prefix+"/undelete/")
+	if err != nil {
+		helper.JSONError(w, http.StatusBadRequest, "Missing Id", err)
+		return
+	}
+
+	m := bc.Repo.New()
+	bc.SetPK(m, id)
+
+	if err := bc.Repo.Undelete(m); err != nil {
+		helper.JSONError(w, http.StatusInternalServerError, "Undelete error", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

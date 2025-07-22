@@ -178,6 +178,15 @@ func TestExampleEndpoints(t *testing.T) {
 		assert.NotEmpty(t, data)
 	})
 
+	t.Run("Undelete - Success", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPatch, baseURL+"/example/undelete/"+insertedID, nil)
+		client := &http.Client{}
+		resp, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	})
+
 	t.Run("Bulk Add - Success", func(t *testing.T) {
 		body := []models.Example{
 			{

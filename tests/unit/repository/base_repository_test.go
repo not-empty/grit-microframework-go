@@ -69,6 +69,22 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUndelete(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE `example` SET `deleted_at` = NULL WHERE `id` = ? AND `deleted_at` IS NOT NULL")).
+		WithArgs("1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err = repo.Undelete(&models.Example{ID: "1"})
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestDetail(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

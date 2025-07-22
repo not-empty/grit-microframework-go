@@ -82,7 +82,7 @@ func JwtMiddleware(next http.Handler) http.Handler {
 			Token:   token,
 			Expires: expires,
 		})
-		ctx = context.WithValue(ctx, appctx.AppVersionKey, "v1.0.0")
+		ctx = context.WithValue(ctx, appctx.AppVersionKey, "v1.0.2")
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

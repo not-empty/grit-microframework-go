@@ -83,6 +83,7 @@ run go main.go
 | GET    | `/example/list`             | List active records (paginated)            |
 | GET    | `/example/list_one`         | List one record based on params            |
 | POST   | `/example/select_raw`       | Execute a predefined raw SQL query safely  |
+| PATCH  | `/example/undelete/{id}`    | Soft-Undelete a record by ID               |
 
 ---
 

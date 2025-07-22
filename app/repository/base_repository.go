@@ -47,6 +47,7 @@ type RepositoryInterface[T BaseModel] interface {
 	List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
 	ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error)
 	Raw(query string, params map[string]any) ([]map[string]any, error)
+	Undelete(m T) error
 }
 
 type Repository[T BaseModel] struct {
@@ -122,4 +123,8 @@ func (r *Repository[T]) Raw(query string, params map[string]any) ([]map[string]a
 	m := r.New()
 	sqlText, args := helper.PrepareRawQuery(query, params)
 	return rawRecords(r.DB, m.Schema(), sqlText, args...)
+}
+
+func (r *Repository[T]) Undelete(m T) error {
+	return undeleteRecord(r.DB, m.TableName(), m.PrimaryKey(), m.PrimaryKeyValue())
 }

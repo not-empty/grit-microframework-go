@@ -177,6 +177,17 @@ curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/dead_list" \
 print_custom_headers "$HEADERS_FILE"
 rm -f "$HEADERS_FILE"
 
+# Undelete the data
+echo "❌ Undeleting data $example_ID..."
+HEADERS_FILE=$(mktemp)
+curl -s -D "$HEADERS_FILE" -X PATCH "$BASE_URL/$DOMAIN/undelete/$example_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Context: $AUTH_CONTEXT" \
+  -H "Accept: application/json" | jq
+echo -e "\n🗑️  data undeleted."
+print_custom_headers "$HEADERS_FILE"
+rm -f "$HEADERS_FILE"
+
 # List active data (final)
 echo "📥 Listing examples (after delete)..."
 HEADERS_FILE=$(mktemp)
