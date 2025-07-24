@@ -44,11 +44,11 @@ func GetPaginationParams(r *http.Request) (limit int, cursor *PageCursor, err er
 	var c PageCursor
 	rawBytes, decErr := base64.URLEncoding.WithPadding(base64.NoPadding).DecodeString(raw)
 	if decErr != nil {
-		err = errors.New("Invalid cursor encoding")
+		err = errors.New("invalid cursor encoding")
 		return
 	}
 	if jsonErr := json.Unmarshal(rawBytes, &c); jsonErr != nil {
-		err = errors.New("Invalid cursor payload")
+		err = errors.New("invalid cursor payload")
 		return
 	}
 	cursor = &c

@@ -475,3 +475,32 @@ func TestRowsAdapter_NextScanErr(t *testing.T) {
 
 	require.NoError(t, ra.Err())
 }
+
+func TestGenericScanToMap_NullDate(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+
+	defer db.Close()
+
+	date := time.Now()
+	rows := sqlmock.NewRows([]string{"date_field"}).
+		AddRow(sql.NullTime{Time: date, Valid: true})
+
+	mock.ExpectQuery("SELECT \\* FROM test").WillReturnRows(rows)
+
+	schema := map[string]string{
+		"date_field": "date",
+	}
+
+	r, err := db.Query("SELECT * FROM test")
+	require.NoError(t, err)
+	defer r.Close()
+
+	require.True(t, r.Next())
+
+	result, err := helper.GenericScanToMap(r, schema)
+	require.NoError(t, err)
+
+	require.Contains(t, result, "date_field")
+	require.Equal(t, date.Format("2006-01-02"), result["date_field"])
+}

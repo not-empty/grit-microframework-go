@@ -107,7 +107,7 @@ func parseExtraFields(
 			goType, goSchemaType = "*helper.JSONTime", "*time.Time"
 			hasDateTime = true
 		case strings.Contains(sqlType, "date"):
-			goType, goSchemaType = "string", "string"
+			goType, goSchemaType = "string", "date"
 		case strings.Contains(sqlType, "int"):
 			goType, goSchemaType = "int", "int"
 		case strings.Contains(sqlType, "char"),
