@@ -16,7 +16,7 @@ func JSONResponse(w http.ResponseWriter, status int, payload any) {
 func ExtractID(path, prefix string) (string, error) {
 	id := strings.TrimPrefix(path, prefix)
 	if id == "" {
-		return "", errors.New("Missing ID")
+		return "", errors.New("missing ID")
 	}
 	return id, nil
 }

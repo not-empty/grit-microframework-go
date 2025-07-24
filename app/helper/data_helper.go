@@ -11,7 +11,7 @@ func FilterJSON(model interface{}, fields []string) map[string]interface{} {
 	var all map[string]interface{}
 	_ = json.Unmarshal(data, &all)
 
-	if fields == nil || len(fields) == 0 {
+	if len(fields) == 0 {
 		return all
 	}
 

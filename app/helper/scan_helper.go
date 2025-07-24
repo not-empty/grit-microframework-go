@@ -53,6 +53,7 @@ func GenericScanToMap(scanner interface {
 
 	scanMap := make(map[string]any)
 	scanArgs := make([]any, len(cols))
+	isDate := make(map[string]struct{})
 
 	for i, col := range cols {
 		typ, ok := schema[col]
@@ -75,6 +76,11 @@ func GenericScanToMap(scanner interface {
 			ptr := new(sql.NullTime)
 			scanMap[col] = ptr
 			scanArgs[i] = ptr
+		case "date":
+			ptr := new(sql.NullTime)
+			scanMap[col] = ptr
+			scanArgs[i] = ptr
+			isDate[col] = struct{}{}
 		default:
 			var discard any
 			scanArgs[i] = &discard
@@ -102,6 +108,12 @@ func GenericScanToMap(scanner interface {
 			}
 		case *sql.NullTime:
 			if v.Valid {
+				_, ok := isDate[key]
+				if ok {
+					result[key] = v.Time.Format("2006-01-02")
+					continue
+				}
+
 				result[key] = v.Time.Format("2006-01-02 15:04:05")
 			} else {
 				result[key] = nil

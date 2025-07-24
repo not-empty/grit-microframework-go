@@ -62,7 +62,7 @@ func TestGetPaginationParams_InvalidCursorEncoding(t *testing.T) {
 	limit, cursor, err := helper.GetPaginationParams(req)
 
 	require.Error(t, err)
-	require.EqualError(t, err, "Invalid cursor encoding")
+	require.EqualError(t, err, "invalid cursor encoding")
 
 	require.Nil(t, cursor)
 	require.Equal(t, helper.DefaultPageLimit, limit)
@@ -77,7 +77,7 @@ func TestGetPaginationParams_InvalidCursorPayload(t *testing.T) {
 	limit, cursor, err := helper.GetPaginationParams(req)
 
 	require.Error(t, err)
-	require.EqualError(t, err, "Invalid cursor payload")
+	require.EqualError(t, err, "invalid cursor payload")
 	require.Nil(t, cursor)
 	require.Equal(t, helper.DefaultPageLimit, limit)
 }

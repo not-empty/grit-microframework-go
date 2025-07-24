@@ -43,7 +43,7 @@ func TestExtractID_Valid(t *testing.T) {
 func TestExtractID_Missing(t *testing.T) {
 	_, err := helper.ExtractID("/users/", "/users/")
 	require.Error(t, err)
-	require.Equal(t, "Missing ID", err.Error())
+	require.Equal(t, "missing ID", err.Error())
 }
 
 func TestFilterList(t *testing.T) {
