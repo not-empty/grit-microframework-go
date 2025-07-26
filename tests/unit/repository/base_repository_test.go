@@ -608,6 +608,7 @@ func TestBulkAdd_Success(t *testing.T) {
 		ID:        "1",
 		Name:      "Alice",
 		Age:       25,
+		LastSeen:  &now1,
 		LastLogin: &now1,
 	}
 
@@ -615,18 +616,19 @@ func TestBulkAdd_Success(t *testing.T) {
 		ID:        "2",
 		Name:      "Bob",
 		Age:       10,
+		LastSeen:  nil,
 		LastLogin: nil,
 	}
 
 	sqlLiteral :=
-		"INSERT INTO `example` (`id`, `name`, `age`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
-			"(?, ?, ?, ?, ?, ?, ?), (?, ?, ?, DEFAULT, ?, ?, ?)"
+		"INSERT INTO `example` (`id`, `name`, `age`, `last_seen`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
+			"(?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, DEFAULT, DEFAULT, ?, ?, ?)"
 
 	pattern := regexp.QuoteMeta(sqlLiteral)
 
 	mock.ExpectExec(pattern).
 		WithArgs(
-			"1", "Alice", 25, now1, nil, nil, nil,
+			"1", "Alice", 25, now1, now1, nil, nil, nil,
 			"2", "Bob", 10, nil, nil, nil,
 		).
 		WillReturnResult(sqlmock.NewResult(1, 2))
@@ -643,10 +645,10 @@ func TestBulkAdd_Error(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	e := &models.Example{ID: "x", Name: "Y", Age: 10, LastLogin: nil}
+	e := &models.Example{ID: "x", Name: "Y", Age: 10, LastSeen: nil, LastLogin: nil}
 
-	errorSQL := "INSERT INTO `example` (`id`, `name`, `age`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
-		"(?, ?, ?, DEFAULT, ?, ?, ?)"
+	errorSQL := "INSERT INTO `example` (`id`, `name`, `age`, `last_seen`, `last_login`, `created_at`, `updated_at`, `deleted_at`) VALUES " +
+		"(?, ?, ?, DEFAULT, DEFAULT, ?, ?, ?)"
 
 	pattern := regexp.QuoteMeta(errorSQL)
 

@@ -50,18 +50,18 @@ func TestGetFilters_NotAllowed(t *testing.T) {
 
 func TestBuildWhereClause_AllOperators(t *testing.T) {
 	filters := []helper.Filter{
-		{"name", "eql", "John"},
-		{"age", "gt", "30"},
-		{"status", "neq", "inactive"},
-		{"title", "lik", "engineer"},
-		{"score", "lt", "90"},
-		{"score", "gte", "60"},
-		{"score", "lte", "100"},
-		{"created", "btw", "2020-01-01,2020-12-31"},
-		{"deleted_at", "nul", "true"},
-		{"updated_at", "nul", "false"},
-		{"email", "nnu", ""},
-		{"role", "in", "admin,user"},
+		{Field: "name", Operator: "eql", Value: "John"},
+		{Field: "age", Operator: "gt", Value: "30"},
+		{Field: "status", Operator: "neq", Value: "inactive"},
+		{Field: "title", Operator: "lik", Value: "engineer"},
+		{Field: "score", Operator: "lt", Value: "90"},
+		{Field: "score", Operator: "gte", Value: "60"},
+		{Field: "score", Operator: "lte", Value: "100"},
+		{Field: "created", Operator: "btw", Value: "2020-01-01,2020-12-31"},
+		{Field: "deleted_at", Operator: "nul", Value: "true"},
+		{Field: "updated_at", Operator: "nul", Value: "false"},
+		{Field: "email", Operator: "nnu", Value: ""},
+		{Field: "role", Operator: "in", Value: "admin,user"},
 	}
 
 	where, args := helper.BuildWhereClause(filters)
