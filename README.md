@@ -308,6 +308,7 @@ type Example struct {
 	ID        string           `json:"id"`
 	Name      string           `json:"name" validate:"required,min=5"`
 	Age       int              `json:"age" validate:"required,number,gt=0,lt=100"`
+	LastSeen  *helper.JSONTime `json:"last_seen"`
 	LastLogin *helper.JSONTime `json:"last_login"`
 	CreatedAt *time.Time       `json:"created_at"`
 	UpdatedAt *time.Time       `json:"updated_at"`
@@ -322,6 +323,7 @@ CREATE TABLE example (
   `id` CHAR(26) NOT NULL,
   `name` TEXT NOT NULL, -- validate: "min=5" -- sanitize-html
   `age` INT DEFAULT 0, -- validate: "required,number,gt=0,lt=100"
+  `last_seen` DATE DEFAULT NULL,
   `last_login` DATETIME DEFAULT NULL,
   `created_at` DATETIME DEFAULT NULL,
   `updated_at` DATETIME DEFAULT NULL,
@@ -329,6 +331,8 @@ CREATE TABLE example (
   PRIMARY KEY (`id`),
   KEY `idx_example_deleted_at` (`deleted_at`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+> PS: Do not validate DATE or DATETIME fields with the "datetime" validator, the internat datetime_helper will treat these validations in runtime and returns a 400 HTTP code error if receives any invalid formated date.
 ```
 
 ## Default Behavior

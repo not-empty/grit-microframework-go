@@ -42,16 +42,28 @@ func (r *rowsAdapter) Err() error {
 	return r.Rows.Err()
 }
 
-func GenericScanToMap(scanner interface {
-	Columns() ([]string, error)
-	Scan(...any) error
-}, schema map[string]string) (map[string]any, error) {
+func GenericScanToMap(
+	scanner interface {
+		Columns() ([]string, error)
+		Scan(...any) error
+	},
+	schema map[string]string,
+) (map[string]any, error) {
 	cols, err := scanner.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
 
-	scanMap := make(map[string]any)
+	var colTypes []*sql.ColumnType
+	if ts, ok := scanner.(interface {
+		ColumnTypes() ([]*sql.ColumnType, error)
+	}); ok {
+		if ct, err := ts.ColumnTypes(); err == nil {
+			colTypes = ct
+		}
+	}
+
+	scanMap := make(map[string]any, len(cols))
 	scanArgs := make([]any, len(cols))
 
 	for i, col := range cols {
@@ -85,26 +97,38 @@ func GenericScanToMap(scanner interface {
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
 
-	result := make(map[string]any)
-	for key, ptr := range scanMap {
-		switch v := ptr.(type) {
+	result := make(map[string]any, len(schema))
+	for i, col := range cols {
+		raw, ok := scanMap[col]
+		if !ok {
+			continue
+		}
+		switch v := raw.(type) {
 		case *sql.NullString:
 			if v.Valid {
-				result[key] = v.String
+				result[col] = v.String
 			} else {
-				result[key] = ""
+				result[col] = ""
 			}
 		case *sql.NullInt64:
 			if v.Valid {
-				result[key] = int(v.Int64)
+				result[col] = int(v.Int64)
 			} else {
-				result[key] = 0
+				result[col] = 0
 			}
 		case *sql.NullTime:
 			if v.Valid {
-				result[key] = v.Time.Format("2006-01-02 15:04:05")
+				dbType := ""
+				if i < len(colTypes) {
+					dbType = strings.ToUpper(colTypes[i].DatabaseTypeName())
+				}
+				if dbType == "DATE" {
+					result[col] = v.Time.Format("2006-01-02")
+				} else {
+					result[col] = v.Time.Format("2006-01-02 15:04:05")
+				}
 			} else {
-				result[key] = nil
+				result[col] = nil
 			}
 		}
 	}

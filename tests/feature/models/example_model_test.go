@@ -41,8 +41,10 @@ func TestExampleEndpoints(t *testing.T) {
 
 	t.Run("Add - Success", func(t *testing.T) {
 		body := map[string]interface{}{
-			"name": "Example User",
-			"age":  30,
+			"name":       "Example User",
+			"age":        30,
+			"last_login": "2025-02-02 02:02:02",
+			"last_seen":  "2025-07-07",
 		}
 		payload, _ := json.Marshal(body)
 
@@ -188,14 +190,18 @@ func TestExampleEndpoints(t *testing.T) {
 	})
 
 	t.Run("Bulk Add - Success", func(t *testing.T) {
-		body := []models.Example{
+		body := []map[string]interface{}{
 			{
-				Name: "Example User",
-				Age:  30,
+				"name":       "Example User",
+				"age":        30,
+				"last_login": "2025-01-01 01:01:01",
+				"last_seen":  "2025-06-06",
 			},
 			{
-				Name: "Example User 2",
-				Age:  31,
+				"name":       "Example User 2",
+				"age":        31,
+				"last_login": "2025-01-01 01:01:01",
+				"last_seen":  "2025-06-06",
 			},
 		}
 

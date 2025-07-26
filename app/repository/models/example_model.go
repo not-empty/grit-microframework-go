@@ -10,6 +10,7 @@ type Example struct {
 	ID        string           `json:"id"`
 	Name      string           `json:"name" validate:"required,min=5"`
 	Age       int              `json:"age" validate:"required,required,number,gt=0,lt=100"`
+	LastSeen  *helper.JSONTime `json:"last_seen"`
 	LastLogin *helper.JSONTime `json:"last_login"`
 	CreatedAt *time.Time       `json:"created_at"`
 	UpdatedAt *time.Time       `json:"updated_at"`
@@ -21,6 +22,7 @@ func (m *Example) Schema() map[string]string {
 		"id":         "string",
 		"name":       "string",
 		"age":        "int",
+		"last_seen":  "*time.Time",
 		"last_login": "*time.Time",
 		"created_at": "*time.Time",
 		"updated_at": "*time.Time",
@@ -33,15 +35,15 @@ func (m *Example) TableName() string {
 }
 
 func (m *Example) Columns() []string {
-	return []string{"id", "name", "age", "last_login", "created_at", "updated_at", "deleted_at"}
+	return []string{"id", "name", "age", "last_seen", "last_login", "created_at", "updated_at", "deleted_at"}
 }
 
 func (m *Example) Values() []interface{} {
-	return []interface{}{m.ID, m.Name, m.Age, m.LastLogin, m.CreatedAt, m.UpdatedAt, m.DeletedAt}
+	return []interface{}{m.ID, m.Name, m.Age, m.LastSeen, m.LastLogin, m.CreatedAt, m.UpdatedAt, m.DeletedAt}
 }
 
 func (m *Example) HasDefaultValue() []string {
-	return []string{"last_login"}
+	return []string{"last_seen", "last_login"}
 }
 
 func (m *Example) PrimaryKey() string {
