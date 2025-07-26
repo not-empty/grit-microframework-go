@@ -332,8 +332,9 @@ CREATE TABLE example (
   KEY `idx_example_deleted_at` (`deleted_at`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-> PS: Do not validate DATE or DATETIME fields with the "datetime" validator, the internat datetime_helper will treat these validations in runtime and returns a 400 HTTP code error if receives any invalid formated date.
 ```
+
+> PS: Do not validate DATE or DATETIME fields with the "datetime" validator, the internal datetime_helper will treat these validations in runtime and returns a 400 HTTP code error if receives any invalid formated date.
 
 ## Default Behavior
 
