@@ -66,7 +66,8 @@ func BuildPageCursor(body []byte, query url.Values) (string, error) {
 		return "", nil
 	}
 
-	if len(arr) < DefaultPageLimit {
+	lim := ParseLimit(query.Get("limit"))
+	if len(arr) < lim {
 		return "", nil
 	}
 
