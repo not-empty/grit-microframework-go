@@ -130,7 +130,7 @@ run go main.go
 
 ## Pagination with Cursor
 
-By default endpoints return up to **25** items and include an `X-Page-Cursor` header when more pages exist.
+By default list endpoints return up to **25** (or less if you provide the ?limit=x) items and include an `X-Page-Cursor` header when more pages exist.
 
 1. **First page** (no cursor):
 
@@ -155,7 +155,7 @@ By default endpoints return up to **25** items and include an `X-Page-Cursor` he
      -H "Authorization: Bearer <JWT>"
    ```
 
-Once fewer than **25** records return, no `X-Page-Cursor` is emitted (end of list).
+Once fewer than **25** records (or the value setted with ?limit=) return, no `X-Page-Cursor` is emitted (end of list).
 
 ---
 
