@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 const DefaultPageLimit = 25
@@ -34,7 +35,7 @@ func DecodeCursor(token string) (PageCursor, error) {
 }
 
 func GetPaginationParams(r *http.Request) (limit int, cursor *PageCursor, err error) {
-	limit = DefaultPageLimit
+	limit = ParseLimit(r.URL.Query().Get("limit"))
 
 	raw := r.URL.Query().Get("page_cursor")
 	if raw == "" {
@@ -85,4 +86,16 @@ func BuildPageCursor(body []byte, query url.Values) (string, error) {
 		LastID:    idVal,
 		LastValue: lastVal,
 	}), nil
+}
+
+func ParseLimit(raw string) int {
+	def := DefaultPageLimit
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 || v >= def {
+		return def
+	}
+	return v
 }

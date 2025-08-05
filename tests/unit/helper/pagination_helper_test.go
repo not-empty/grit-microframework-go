@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/not-empty/grit-microframework-go/app/helper"
@@ -145,4 +146,21 @@ func TestBuildPageCursor_FullPage_CustomOrderBy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "id25", pc.LastID)
 	require.Equal(t, "175", pc.LastValue)
+}
+
+func TestParseLimit_CustomWithinBounds(t *testing.T) {
+	def := helper.DefaultPageLimit
+	for _, raw := range []string{"1", strconv.Itoa(def - 1)} {
+		got := helper.ParseLimit(raw)
+		want, _ := strconv.Atoi(raw)
+		require.Equal(t, want, got, "ParseLimit(%q)", raw)
+	}
+}
+
+func TestParseLimit_FallbackToDefault(t *testing.T) {
+	def := helper.DefaultPageLimit
+	for _, raw := range []string{"", "foo", "0", strconv.Itoa(def), strconv.Itoa(def + 5)} {
+		got := helper.ParseLimit(raw)
+		require.Equal(t, def, got, "ParseLimit(%q) should fallback", raw)
+	}
 }
