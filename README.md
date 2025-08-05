@@ -65,7 +65,7 @@ Also copy `./config/tokens.json.example` → `./config/tokens.json` to configure
 Run GRIT with:
 
 ```bash
-run go main.go
+go run main.go
 ```
 
 ## Endpoints
