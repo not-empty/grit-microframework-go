@@ -196,7 +196,7 @@ rm -f "$HEADERS_FILE"
 # List active data (final)
 echo "📥 Listing examples (after delete)..."
 HEADERS_FILE=$(mktemp)
-curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list" \
+curl -s -D "$HEADERS_FILE" -X GET "$BASE_URL/$DOMAIN/list?limit=8" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Context: $AUTH_CONTEXT" \
   -H "Accept: application/json" | jq

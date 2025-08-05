@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/not-empty/grit-microframework-go/app/helper"
 	"github.com/stretchr/testify/require"
 )
@@ -474,4 +475,28 @@ func TestRowsAdapter_NextScanErr(t *testing.T) {
 	require.False(t, ra.Next())
 
 	require.NoError(t, ra.Err())
+}
+
+func TestGenericScanToMap_DateColumnFormatsAsYYYYMMDD(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE t(d DATE)`)
+	require.NoError(t, err)
+
+	dt := time.Date(2025, 6, 6, 0, 0, 0, 0, time.UTC)
+	_, err = db.Exec(`INSERT INTO t(d) VALUES(?)`, dt.Format("2006-01-02"))
+	require.NoError(t, err)
+
+	rows, err := db.Query(`SELECT d FROM t`)
+	require.NoError(t, err)
+	defer rows.Close()
+	require.True(t, rows.Next())
+
+	schema := map[string]string{"d": "*time.Time"}
+	m, err := helper.GenericScanToMap(rows, schema)
+	require.NoError(t, err)
+
+	require.Equal(t, "2025-06-06", m["d"])
 }
