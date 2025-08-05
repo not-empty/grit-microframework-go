@@ -494,7 +494,7 @@ func TestGenericScanToMap_DateColumnFormatsAsYYYYMMDD(t *testing.T) {
 	defer rows.Close()
 	require.True(t, rows.Next())
 
-	schema := map[string]string{"d": "*time.Time"} // your code only checks the SQL type, not schema type
+	schema := map[string]string{"d": "*time.Time"}
 	m, err := helper.GenericScanToMap(rows, schema)
 	require.NoError(t, err)
 
