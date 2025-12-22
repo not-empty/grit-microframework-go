@@ -322,6 +322,55 @@ func TestBulk(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestBulk_WithFilters(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	filters := []helper.Filter{{Field: "name", Operator: "eql", Value: "John"}}
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) AND `name` = ? ORDER BY `id` DESC LIMIT ?",
+	)).
+		WithArgs("1", "2", "John", 10).
+		WillReturnRows(rows)
+
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulk_WithMultiplesFilters(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	filters := []helper.Filter{
+		{Field: "name", Operator: "eql", Value: "John"},
+		{Field: "age", Operator: "eql", Value: "30"},
+	}
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) AND `name` = ? AND `age` = ? ORDER BY `id` DESC LIMIT ?",
+	)).
+		WithArgs("1", "2", "John", "30", 10).
+		WillReturnRows(rows)
+
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBulk_EmptyIDs(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
