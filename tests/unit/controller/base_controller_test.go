@@ -143,7 +143,7 @@ func (fr *fakeRepository) DeadList(limit int, pageCursor *helper.PageCursor, ord
 	return fr.listDeletedResult, fr.listDeletedError
 }
 
-func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.bulkGetResult, fr.bulkGetError
 }
 

@@ -37,7 +37,7 @@ type BaseModel interface {
 type RepositoryInterface[T BaseModel] interface {
 	New() T
 	Add(m T) error
-	Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error)
+	Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
 	BulkAdd(models []T) error
 	DeadDetail(id interface{}, fields []string) (map[string]any, error)
 	DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error)
@@ -78,9 +78,9 @@ func (r *Repository[T]) BulkAdd(m []T) error {
 	return bulkAddRecords(r.DB, baseModels)
 }
 
-func (r *Repository[T]) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (r *Repository[T]) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	m := r.New()
-	return bulkRecords(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, ids, limit, pageCursor, orderBy, order)
+	return bulkRecords(r.DB, m.Schema(), m.TableName(), m.PrimaryKey(), fields, filters, ids, limit, pageCursor, orderBy, order)
 }
 
 func (r *Repository[T]) DeadDetail(id interface{}, fields []string) (map[string]any, error) {

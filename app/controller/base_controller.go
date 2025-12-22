@@ -92,8 +92,9 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
-	list, err := bc.Repo.Bulk(input.IDs, limit, pageCursor, orderBy, order, fields)
+	list, err := bc.Repo.Bulk(input.IDs, limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
 		helper.JSONError(w, http.StatusInternalServerError, "Bulk error", err)
 		return

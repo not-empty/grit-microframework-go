@@ -40,6 +40,7 @@ func bulkRecords(
 	table string,
 	pk string,
 	fields []string,
+	filters []helper.Filter,
 	ids []string,
 	limit int,
 	pageCursor *helper.PageCursor,
@@ -86,6 +87,17 @@ func bulkRecords(
 	for _, id := range ids {
 		args = append(args, id)
 	}
+
+	if len(filters) > 0 {
+		whereFilterClause, filterArgs := helper.BuildWhereClause(filters)
+
+		whereFilterClause = strings.Replace(whereFilterClause, "WHERE ", "", 1)
+		splitedFilterClause := strings.Split(whereFilterClause, " AND ")
+
+		where = append(where, splitedFilterClause...)
+		args = append(args, filterArgs...)
+	}
+
 	args = append(args, limit)
 
 	query := fmt.Sprintf(

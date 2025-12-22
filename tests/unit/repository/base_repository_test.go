@@ -315,7 +315,7 @@ func TestBulk(t *testing.T) {
 		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -329,7 +329,7 @@ func TestBulk_EmptyIDs(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	result, err := repo.Bulk([]string{}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk([]string{}, 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Nil(t, result)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -349,7 +349,7 @@ func TestBulk_QueryError(t *testing.T) {
 		WithArgs("1", "2", 10).
 		WillReturnError(expectedErr)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Equal(t, expectedErr, err)
 	require.Nil(t, result)
@@ -379,7 +379,7 @@ func TestBulk_ScanError(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "scan error")
 	require.Nil(t, result)
@@ -445,7 +445,7 @@ func TestBulk_WithCursor(t *testing.T) {
 			AddRow("2", "Bob", 28),
 		)
 
-	list, err := repo.Bulk(ids, 5, cursor, "id", "ASC", []string{"id", "name", "age"})
+	list, err := repo.Bulk(ids, 5, cursor, "id", "ASC", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Bob", list[0]["name"])
@@ -481,7 +481,7 @@ func TestBulk_WithCursorDesc(t *testing.T) {
 			AddRow("2", "Bob", 28),
 		)
 
-	list, err := repo.Bulk(ids, 5, cursor, "id", "DESC", []string{"id", "name", "age"})
+	list, err := repo.Bulk(ids, 5, cursor, "id", "DESC", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Bob", list[0]["name"])
