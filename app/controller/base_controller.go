@@ -91,7 +91,11 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+
+	cols := bc.Repo.New().Columns()
+
+	fields := helper.GetFieldsParam(r, cols)
+	fields = helper.EnsurePaginationFields(fields, orderBy)
 
 	list, err := bc.Repo.Bulk(input.IDs, limit, pageCursor, orderBy, order, fields)
 	if err != nil {
@@ -193,8 +197,12 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	filters := helper.GetFilters(r, bc.Repo.New().Columns())
+
+	cols := bc.Repo.New().Columns()
+
+	fields := helper.GetFieldsParam(r, cols)
+	fields = helper.EnsurePaginationFields(fields, orderBy)
+	filters := helper.GetFilters(r, cols)
 
 	list, err := bc.Repo.DeadList(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
@@ -318,8 +326,12 @@ func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
-	filters := helper.GetFilters(r, bc.Repo.New().Columns())
+
+	cols := bc.Repo.New().Columns()
+
+	fields := helper.GetFieldsParam(r, cols)
+	fields = helper.EnsurePaginationFields(fields, orderBy)
+	filters := helper.GetFilters(r, cols)
 
 	list, err := bc.Repo.List(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {

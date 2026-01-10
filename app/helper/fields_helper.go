@@ -82,3 +82,30 @@ func EscapeMysqlFields(fields []string) []string {
 	}
 	return escapedFields
 }
+
+func EnsurePaginationFields(fields []string, orderBy string) []string {
+	if len(fields) == 0 {
+		return fields
+	}
+
+	seen := make(map[string]struct{}, len(fields))
+	result := make([]string, 0, len(fields)+2)
+
+	addUnique := func(field string) {
+		if _, exists := seen[field]; !exists {
+			seen[field] = struct{}{}
+			result = append(result, field)
+		}
+	}
+
+	for _, f := range fields {
+		addUnique(f)
+	}
+
+	addUnique("id")
+	if orderBy != "" && orderBy != "id" {
+		addUnique(orderBy)
+	}
+
+	return result
+}
