@@ -222,8 +222,6 @@ func listRecords(
 	order = helper.ValidateOrder(order)
 
 	whereClause, args := helper.BuildWhereClause(filters)
-
-	// deleted_at constraint
 	if deleted {
 		if whereClause == "" {
 			whereClause = "WHERE `deleted_at` IS NOT NULL"
