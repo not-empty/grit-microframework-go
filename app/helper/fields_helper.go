@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-func GetFieldsParam(r *http.Request, allowedFields []string) (fields []string) {
-	query := r.URL.Query().Get("fields")
+func ParseFieldsParam(query string, allowedFields []string) (fields []string) {
 	if query == "" {
 		return nil
 	}
@@ -27,6 +26,43 @@ func GetFieldsParam(r *http.Request, allowedFields []string) (fields []string) {
 	if len(fields) == 0 {
 		return nil
 	}
+	return fields
+}
+
+func GetFieldsParamOne(r *http.Request, allowedFields []string) []string {
+	return ParseFieldsParam(r.URL.Query().Get("fields"), allowedFields)
+}
+
+func GetFieldsParamList(r *http.Request, allowedFields []string, orderBy string) []string {
+	fields := ParseFieldsParam(r.URL.Query().Get("fields"), allowedFields)
+	return EnsurePaginationFields(fields, orderBy)
+}
+
+func EnsurePaginationFields(fields []string, orderBy string) []string {
+	if len(fields) == 0 {
+		return fields
+	}
+
+	hasID := false
+	hasOrder := false
+
+	for _, f := range fields {
+		if f == "id" {
+			hasID = true
+		}
+		if orderBy != "" && f == orderBy {
+			hasOrder = true
+		}
+	}
+
+	if !hasID {
+		fields = append(fields, "id")
+	}
+
+	if orderBy != "" && orderBy != "id" && !hasOrder {
+		fields = append(fields, orderBy)
+	}
+
 	return fields
 }
 
@@ -81,31 +117,4 @@ func EscapeMysqlFields(fields []string) []string {
 		escapedFields[i] = EscapeMysqlField(field)
 	}
 	return escapedFields
-}
-
-func EnsurePaginationFields(fields []string, orderBy string) []string {
-	if len(fields) == 0 {
-		return fields
-	}
-
-	seen := make(map[string]struct{}, len(fields))
-	result := make([]string, 0, len(fields)+2)
-
-	addUnique := func(field string) {
-		if _, exists := seen[field]; !exists {
-			seen[field] = struct{}{}
-			result = append(result, field)
-		}
-	}
-
-	for _, f := range fields {
-		addUnique(f)
-	}
-
-	addUnique("id")
-	if orderBy != "" && orderBy != "id" {
-		addUnique(orderBy)
-	}
-
-	return result
 }

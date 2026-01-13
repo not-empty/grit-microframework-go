@@ -9,35 +9,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetFieldsParam_ValidFields(t *testing.T) {
-	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,email,created_at"}}
+func TestParseFieldsParam_ValidFields(t *testing.T) {
 	allowed := []string{"name", "email", "created_at", "updated_at"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields := helper.ParseFieldsParam("name,email,created_at", allowed)
 	require.ElementsMatch(t, []string{"name", "email", "created_at"}, fields)
 }
 
-func TestGetFieldsParam_SomeInvalidFields(t *testing.T) {
-	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,invalid,email"}}
+func TestParseFieldsParam_SomeInvalidFields(t *testing.T) {
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields := helper.ParseFieldsParam("name,invalid,email", allowed)
 	require.ElementsMatch(t, []string{"name", "email"}, fields)
 }
 
-func TestGetFieldsParam_AllInvalid(t *testing.T) {
-	req := &http.Request{URL: &url.URL{RawQuery: "fields=bad1,bad2"}}
+func TestParseFieldsParam_AllInvalid(t *testing.T) {
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields := helper.ParseFieldsParam("bad1,bad2", allowed)
 	require.Nil(t, fields)
 }
 
-func TestGetFieldsParam_EmptyQuery(t *testing.T) {
-	req := &http.Request{URL: &url.URL{RawQuery: ""}}
+func TestParseFieldsParam_EmptyQuery(t *testing.T) {
 	allowed := []string{"name", "email"}
 
-	fields := helper.GetFieldsParam(req, allowed)
+	fields := helper.ParseFieldsParam("", allowed)
 	require.Nil(t, fields)
 }
 
@@ -153,24 +149,45 @@ func TestEnsurePaginationFields_AllFieldsAlreadyPresent(t *testing.T) {
 	require.ElementsMatch(t, []string{"name", "id", "created_at", "email"}, result)
 }
 
-func TestEnsurePaginationFields_NoDuplicates(t *testing.T) {
-	fields := []string{"name", "id", "email", "id"}
-	orderBy := "name"
+func TestGetFieldsParamList_AddsIdAndOrderBy(t *testing.T) {
+	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,email"}}
+	allowed := []string{"id", "name", "email", "created_at"}
 
-	result := helper.EnsurePaginationFields(fields, orderBy)
+	fields := helper.GetFieldsParamList(req, allowed, "created_at")
 
-	idCount := 0
-	nameCount := 0
-	for _, f := range result {
-		if f == "id" {
-			idCount++
-		}
+	require.ElementsMatch(t, []string{"name", "email", "id", "created_at"}, fields)
+}
 
-		if f == "name" {
-			nameCount++
-		}
-	}
+func TestGetFieldsParamList_OrderByAlreadyPresent(t *testing.T) {
+	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,created_at"}}
+	allowed := []string{"id", "name", "email", "created_at"}
 
-	require.Equal(t, 1, idCount, "id should appear only once")
-	require.Equal(t, 1, nameCount, "name should appear only once")
+	fields := helper.GetFieldsParamList(req, allowed, "created_at")
+
+	require.ElementsMatch(t, []string{"name", "created_at", "id"}, fields)
+}
+
+func TestGetFieldsParamList_OrderByIsId(t *testing.T) {
+	req := &http.Request{URL: &url.URL{RawQuery: "fields=name,email"}}
+	allowed := []string{"id", "name", "email"}
+
+	fields := helper.GetFieldsParamList(req, allowed, "id")
+
+	require.ElementsMatch(t, []string{"name", "email", "id"}, fields)
+}
+
+func TestGetFieldsParamList_EmptyQueryReturnsNil(t *testing.T) {
+	req := &http.Request{URL: &url.URL{RawQuery: ""}}
+	allowed := []string{"id", "name", "email"}
+
+	fields := helper.GetFieldsParamList(req, allowed, "name")
+	require.Nil(t, fields)
+}
+
+func TestGetFieldsParamList_AllInvalidReturnsNil(t *testing.T) {
+	req := &http.Request{URL: &url.URL{RawQuery: "fields=bad1,bad2"}}
+	allowed := []string{"id", "name", "email"}
+
+	fields := helper.GetFieldsParamList(req, allowed, "name")
+	require.Nil(t, fields)
 }

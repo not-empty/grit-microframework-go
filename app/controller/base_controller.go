@@ -91,11 +91,7 @@ func (bc *BaseController[T]) Bulk(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-
-	cols := bc.Repo.New().Columns()
-
-	fields := helper.GetFieldsParam(r, cols)
-	fields = helper.EnsurePaginationFields(fields, orderBy)
+	fields := helper.GetFieldsParamList(r, bc.Repo.New().Columns(), orderBy)
 
 	list, err := bc.Repo.Bulk(input.IDs, limit, pageCursor, orderBy, order, fields)
 	if err != nil {
@@ -175,7 +171,7 @@ func (bc *BaseController[T]) DeadDetail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	fields := helper.GetFieldsParamOne(r, bc.Repo.New().Columns())
 	m, err := bc.Repo.DeadDetail(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Detail error", err)
@@ -197,12 +193,8 @@ func (bc *BaseController[T]) DeadList(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-
-	cols := bc.Repo.New().Columns()
-
-	fields := helper.GetFieldsParam(r, cols)
-	fields = helper.EnsurePaginationFields(fields, orderBy)
-	filters := helper.GetFilters(r, cols)
+	fields := helper.GetFieldsParamList(r, bc.Repo.New().Columns(), orderBy)
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
 	list, err := bc.Repo.DeadList(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
@@ -248,7 +240,7 @@ func (bc *BaseController[T]) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	fields := helper.GetFieldsParamOne(r, bc.Repo.New().Columns())
 	m, err := bc.Repo.Detail(id, fields)
 	if err != nil {
 		helper.JSONError(w, http.StatusNotFound, "Detail error", err)
@@ -326,12 +318,8 @@ func (bc *BaseController[T]) List(w http.ResponseWriter, r *http.Request) {
 		helper.JSONError(w, http.StatusBadRequest, "Invalid Page Cursor", err)
 		return
 	}
-
-	cols := bc.Repo.New().Columns()
-
-	fields := helper.GetFieldsParam(r, cols)
-	fields = helper.EnsurePaginationFields(fields, orderBy)
-	filters := helper.GetFilters(r, cols)
+	fields := helper.GetFieldsParamList(r, bc.Repo.New().Columns(), orderBy)
+	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
 	list, err := bc.Repo.List(limit, pageCursor, orderBy, order, fields, filters)
 	if err != nil {
@@ -349,7 +337,7 @@ func (bc *BaseController[T]) ListOne(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderBy, order := helper.GetOrderParams(r, "id")
-	fields := helper.GetFieldsParam(r, bc.Repo.New().Columns())
+	fields := helper.GetFieldsParamOne(r, bc.Repo.New().Columns())
 	filters := helper.GetFilters(r, bc.Repo.New().Columns())
 
 	result, err := bc.Repo.ListOne(orderBy, order, fields, filters)

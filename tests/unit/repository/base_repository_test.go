@@ -689,3 +689,47 @@ func TestBuildRowTokens_ExampleModel(t *testing.T) {
 	require.Equal(t, "(?, ?, ?, DEFAULT, ?, ?, ?)", rowSQL2)
 	require.Equal(t, []interface{}{"X", "Y", 0, nil, nil, nil}, args2)
 }
+
+func TestList_OrderByNotID_AddsSecondaryID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `name` DESC, `id` DESC LIMIT ?",
+	)).
+		WithArgs(10).
+		WillReturnRows(rows)
+
+	result, err := repo.List(10, nil, "name", "DESC", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulk_OrderByNotID_AddsSecondaryID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("1", "John", 30)
+
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL AND `id` IN (?, ?) ORDER BY `name` DESC, `id` DESC LIMIT ?",
+	)).
+		WithArgs("1", "2", 10).
+		WillReturnRows(rows)
+
+	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "name", "DESC", []string{"id", "name", "age"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "John", result[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
