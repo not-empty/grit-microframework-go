@@ -50,7 +50,7 @@ func bulkRecords(
 	}
 
 	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
-	orderBy = helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
+	orderByEsc := helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
 	order = helper.ValidateOrder(order)
 
 	where := []string{"`deleted_at` IS NULL"}
@@ -62,8 +62,8 @@ func bulkRecords(
 		}
 		where = append(where, fmt.Sprintf(
 			"(%s %s ? OR (%s = ? AND `%s` %s ?))",
-			orderBy, op,
-			orderBy, pk, op,
+			orderByEsc, op,
+			orderByEsc, pk, op,
 		))
 	}
 
@@ -88,13 +88,17 @@ func bulkRecords(
 	}
 	args = append(args, limit)
 
+	orderExpr := fmt.Sprintf("%s %s", orderByEsc, order)
+	if orderByEsc != "`id`" {
+		orderExpr = fmt.Sprintf("%s %s, `id` %s", orderByEsc, order, order)
+	}
+
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s WHERE %s ORDER BY %s %s LIMIT ?",
+		"SELECT %s FROM %s WHERE %s ORDER BY %s LIMIT ?",
 		strings.Join(selected, ", "),
 		table,
 		strings.Join(where, " AND "),
-		orderBy,
-		order,
+		orderExpr,
 	)
 
 	rows, err := db.Query(query, args...)
@@ -214,7 +218,7 @@ func listRecords(
 	deleted bool,
 ) ([]map[string]any, error) {
 	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
-	orderBy = helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
+	orderByEsc := helper.EscapeMysqlField(helper.ValidateOrderBy(orderBy, helper.MapKeys(schema)))
 	order = helper.ValidateOrder(order)
 
 	whereClause, args := helper.BuildWhereClause(filters)
@@ -239,8 +243,9 @@ func listRecords(
 		}
 		whereClause += fmt.Sprintf(
 			" AND ( %s %s ? OR ( %s = ? AND `id` %s ? ) )",
-			orderBy, op,
-			orderBy, op,
+			orderByEsc, op,
+			orderByEsc,
+			op,
 		)
 		args = append(args,
 			pageCursor.LastValue,
@@ -248,14 +253,17 @@ func listRecords(
 			pageCursor.LastID,
 		)
 	}
+	orderExpr := fmt.Sprintf("%s %s", orderByEsc, order)
+	if orderByEsc != "`id`" {
+		orderExpr = fmt.Sprintf("%s %s, `id` %s", orderByEsc, order, order)
+	}
 
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s %s ORDER BY %s %s LIMIT ?",
+		"SELECT %s FROM %s %s ORDER BY %s LIMIT ?",
 		strings.Join(selected, ", "),
 		table,
 		whereClause,
-		orderBy,
-		order,
+		orderExpr,
 	)
 	args = append(args, limit)
 
