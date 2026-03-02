@@ -1,0 +1,77 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: grit
+    url: http://grit:8001
+    routes:
+      - name: grit-health
+        paths:
+          - /grit/health
+        strip_path: false
+
+      - name: grit-panic
+        paths:
+          - /grit/panic
+        strip_path: false
+
+      - name: grit-auth-generate
+        paths:
+          - /grit/auth/generate
+        methods:
+          - POST
+        strip_path: false
+
+      - name: grit-default
+        paths:
+          - /grit
+        strip_path: true
+
+plugins:
+  - name: key-auth
+    service: grit
+    config:
+      key_names: [X-Api-Key]
+      hide_credentials: true
+
+  - name: rate-limiting
+    service: grit
+    config:
+      limit_by: credential
+      policy: local
+      second: 1
+
+  - name: rate-limiting
+    route: grit-panic
+    config:
+      limit_by: credential
+      policy: local
+      second: 1
+      day: 10
+
+  - name: request-transformer
+    route: grit-health
+    config:
+      replace:
+        uri: /health
+
+  - name: request-transformer
+    route: grit-panic
+    config:
+      replace:
+        uri: /panic
+
+  - name: request-transformer
+    route: grit-auth-generate
+    config:
+      replace:
+        uri: /auth/generate
+
+consumers:
+  - username: adm
+    keyauth_credentials:
+      - key: test
+
+  - username: user
+    keyauth_credentials:
+      - key: test2
