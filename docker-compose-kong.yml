@@ -1,0 +1,52 @@
+services:
+  grit:
+    container_name: grit
+    build:
+      context: .
+      dockerfile: ops/Dockerfile-dev
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    ulimits:
+      nofile:
+        soft: "65536"
+        hard: "65536"
+    depends_on:
+      - grit-mysql
+
+  grit-mysql:
+    container_name: grit-mysql
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: grit
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - grit-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0
+
+  kong:
+    container_name: kong
+    image: kong/kong-gateway:3.8.0.0
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8003"
+      KONG_ADMIN_GUI_URL: "http://localhost:8003"
+    ports:
+      - "8000:8000"
+      - "8002:8001"
+      - "8003:8003"
+    volumes:
+      - ./ops/kong.yml:/kong/declarative/kong.yml:ro
+
+
+volumes:
+  grit-data:
