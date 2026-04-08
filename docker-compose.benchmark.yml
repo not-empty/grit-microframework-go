@@ -1,0 +1,60 @@
+services:
+  grit:
+    container_name: grit
+    build:
+      context: .
+      dockerfile: ops/Dockerfile-prod
+    ports:
+      - "8001:8001"
+    environment:
+      APP_ENV: production
+      APP_LOG: "false"
+      APP_NO_AUTH: "true"
+      APP_PORT: "8001"
+      DB_DRIVER: mysql
+      DB_HOST: grit-mysql
+      DB_MAX_CONN: "100"
+      DB_MAX_IDLE: "10"
+      DB_NAME: grit
+      DB_PASS: password
+      DB_PORT: "3306"
+      DB_USER: user
+      JWT_APP_SECRET: secret
+      JWT_EXPIRE: "900"
+      JWT_RENEW: "600"
+    ulimits:
+      nofile:
+        soft: "65536"
+        hard: "65536"
+    depends_on:
+      grit-mysql:
+        condition: service_healthy
+
+  grit-mysql:
+    container_name: grit-mysql
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: grit
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - grit-data:/var/lib/mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --bind-address=0.0.0.0
+      - --max-connections=200
+      - --innodb-buffer-pool-size=256M
+      - --innodb-flush-log-at-trx-commit=2
+      - --performance-schema=OFF
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uuser", "-ppassword"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  grit-data:
