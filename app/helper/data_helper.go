@@ -32,8 +32,14 @@ func IsEmptyValue(v interface{}) bool {
 		return val == ""
 	case int:
 		return val == 0
+	case *int:
+		return val == nil
+	case *int64:
+		return val == nil
 	case int64:
 		return val == 0
+	case *float64:
+		return val == nil
 	case float64:
 		return val == 0
 	case *time.Time:
