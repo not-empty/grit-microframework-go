@@ -162,7 +162,7 @@ func parseExtraFields(
 		if strings.Contains(upperLine, "DEFAULT") {
 			defaultCols = append(defaultCols, fmt.Sprintf("\"%s\"", colName))
 
-			if goType != "string" {
+			if goType == "int" {
 				goType = "*" + goType
 			}
 		}
