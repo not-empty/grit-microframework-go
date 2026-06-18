@@ -78,6 +78,7 @@ func TestFilterJSON_EmptyFieldsSlice(t *testing.T) {
 func TestIsEmptyValue_Types(t *testing.T) {
 	now := time.Now()
 	jsonTime := helper.JSONTime(now)
+	intVal := 0
 
 	tt := []struct {
 		name  string
@@ -100,6 +101,9 @@ func TestIsEmptyValue_Types(t *testing.T) {
 
 		{"*time.Time nil", (*time.Time)(nil), true},
 		{"*time.Time non-nil", &now, false},
+
+		{"*int nil", (*int)(nil), true},
+		{"*int non-nil", &intVal, false},
 
 		{"*JSONTime nil", (*helper.JSONTime)(nil), true},
 		{"*JSONTime non-nil", &jsonTime, false},
@@ -286,6 +290,26 @@ func TestBuildRowTokens_DefaultNonEmptyPointer(t *testing.T) {
 	}
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Errorf("BuildRowTokens default non-empty pointer: got args %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildRowTokens_DefaultNilIntPointer(t *testing.T) {
+	var score *int
+
+	allCols := []string{"name", "score"}
+	vals := []interface{}{"item", score}
+	defaultCols := []string{"score"}
+
+	rowSQL, args := helper.BuildRowTokens(allCols, vals, defaultCols)
+
+	wantSQL := "(?, DEFAULT)"
+	wantArgs := []interface{}{"item"}
+
+	if rowSQL != wantSQL {
+		t.Errorf("BuildRowTokens default nil int pointer: got SQL %q, want %q", rowSQL, wantSQL)
+	}
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Errorf("BuildRowTokens default nil int pointer: got args %v, want %v", args, wantArgs)
 	}
 }
 
