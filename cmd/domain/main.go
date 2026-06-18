@@ -150,7 +150,6 @@ func parseExtraFields(
 		}
 
 		fieldName := SnakeToCamel(colName)
-		fieldLines = append(fieldLines, fmt.Sprintf("%s %s %s", fieldName, goType, tag))
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		valNames = append(valNames, fmt.Sprintf("m.%s", fieldName))
 		schemaMap = append(schemaMap, fmt.Sprintf("\"%s\": \"%s\"", colName, goSchemaType))
@@ -162,7 +161,13 @@ func parseExtraFields(
 
 		if strings.Contains(upperLine, "DEFAULT") {
 			defaultCols = append(defaultCols, fmt.Sprintf("\"%s\"", colName))
+
+			if goType == "int" {
+				goType = "*" + goType
+			}
 		}
+
+		fieldLines = append(fieldLines, fmt.Sprintf("%s %s %s", fieldName, goType, tag))
 	}
 
 	fields = strings.Join(fieldLines, "\n\t")
