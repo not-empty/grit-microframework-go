@@ -1,7 +1,8 @@
 FROM golang:1.24-alpine
 WORKDIR /app
 
-RUN apk add --no-cache build-base ca-certificates git curl
+RUN apk add --no-cache build-base ca-certificates git curl && \
+    curl -sSf https://atlasgo.sh | sh
 
 EXPOSE 8001
 

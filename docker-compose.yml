@@ -28,6 +28,7 @@ services:
       - "3306:3306"
     volumes:
       - grit-data:/var/lib/mysql
+      - ./ops/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0
 
 volumes:
