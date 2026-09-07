@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 var ScanFunc = helper.GenericScanToMap
 
-func addRecord(db *sql.DB, m BaseModel) error {
+func addRecord(ctx context.Context, db *sql.DB, m BaseModel) error {
 	allCols := m.Columns()
 	allVals := m.Values()
 
@@ -30,11 +31,12 @@ func addRecord(db *sql.DB, m BaseModel) error {
 		strings.Join(placeholders, ", "),
 	)
 
-	_, err := db.Exec(query, finalVals...)
+	_, err := db.ExecContext(ctx, query, finalVals...)
 	return err
 }
 
 func bulkRecords(
+	ctx context.Context,
 	db *sql.DB,
 	schema map[string]string,
 	table string,
@@ -101,7 +103,7 @@ func bulkRecords(
 		orderExpr,
 	)
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +120,7 @@ func bulkRecords(
 	return list, nil
 }
 
-func bulkAddRecords(db *sql.DB, m []BaseModel) error {
+func bulkAddRecords(ctx context.Context, db *sql.DB, m []BaseModel) error {
 	first := m[0]
 	table := first.TableName()
 	allCols := first.Columns()
@@ -143,21 +145,21 @@ func bulkAddRecords(db *sql.DB, m []BaseModel) error {
 		strings.Join(rowsSQL, ", "),
 	)
 
-	_, err := db.Exec(query, args...)
+	_, err := db.ExecContext(ctx, query, args...)
 	return err
 }
 
-func deleteRecord(db *sql.DB, table, pk string, pkVal interface{}) error {
+func deleteRecord(ctx context.Context, db *sql.DB, table, pk string, pkVal interface{}) error {
 	query := fmt.Sprintf(
 		"UPDATE %s SET `deleted_at` = NOW() WHERE `%s` = ? AND `deleted_at` IS NULL",
 		table,
 		pk,
 	)
-	_, err := db.Exec(query, pkVal)
+	_, err := db.ExecContext(ctx, query, pkVal)
 	return err
 }
 
-func editRecord(db *sql.DB, table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+func editRecord(ctx context.Context, db *sql.DB, table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
 	if len(cols) == 0 {
 		return nil
 	}
@@ -175,11 +177,11 @@ func editRecord(db *sql.DB, table, pk string, pkVal interface{}, cols []string, 
 	)
 
 	vals = append(vals, pkVal)
-	_, err := db.Exec(query, vals...)
+	_, err := db.ExecContext(ctx, query, vals...)
 	return err
 }
 
-func getRecord(db *sql.DB, id interface{}, schema map[string]string, table string, pk string, fields []string, deleted bool) (map[string]any, error) {
+func getRecord(ctx context.Context, db *sql.DB, id interface{}, schema map[string]string, table string, pk string, fields []string, deleted bool) (map[string]any, error) {
 	selected := helper.EscapeMysqlFields(helper.FilterFields(fields, helper.MapKeys(schema)))
 	condition := "`deleted_at` IS NULL"
 	if deleted {
@@ -194,7 +196,7 @@ func getRecord(db *sql.DB, id interface{}, schema map[string]string, table strin
 		condition,
 	)
 
-	rows, err := db.Query(query, id)
+	rows, err := db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +209,7 @@ func getRecord(db *sql.DB, id interface{}, schema map[string]string, table strin
 }
 
 func listRecords(
+	ctx context.Context,
 	db *sql.DB,
 	schema map[string]string,
 	table string,
@@ -267,7 +270,7 @@ func listRecords(
 	)
 	args = append(args, limit)
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +287,8 @@ func listRecords(
 	return list, nil
 }
 
-func rawRecords(db *sql.DB, _ map[string]string, sqlText string, args ...interface{}) ([]map[string]any, error) {
-	rows, err := db.Query(sqlText, args...)
+func rawRecords(ctx context.Context, db *sql.DB, _ map[string]string, sqlText string, args ...interface{}) ([]map[string]any, error) {
+	rows, err := db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -294,12 +297,12 @@ func rawRecords(db *sql.DB, _ map[string]string, sqlText string, args ...interfa
 	return helper.SimpleScanRows(helper.NewRowsAdapter(rows))
 }
 
-func undeleteRecord(db *sql.DB, table, pk string, pkVal interface{}) error {
+func undeleteRecord(ctx context.Context, db *sql.DB, table, pk string, pkVal interface{}) error {
 	query := fmt.Sprintf(
 		"UPDATE %s SET `deleted_at` = NULL WHERE `%s` = ? AND `deleted_at` IS NOT NULL",
 		table,
 		pk,
 	)
-	_, err := db.Exec(query, pkVal)
+	_, err := db.ExecContext(ctx, query, pkVal)
 	return err
 }
