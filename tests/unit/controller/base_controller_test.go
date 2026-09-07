@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -105,58 +106,106 @@ func (fr *fakeRepository) New() *fakeModel {
 	return &fakeModel{}
 }
 
-func (fr *fakeRepository) Add(m *fakeModel) error {
+func (fr *fakeRepository) AddContext(ctx context.Context, m *fakeModel) error {
 	fr.insertedModel = m
 	return fr.insertedError
 }
 
-func (fr *fakeRepository) Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+func (fr *fakeRepository) EditContext(ctx context.Context, table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
 	fr.updateFieldsCalled = true
 	fr.updateFieldsCols = cols
 	fr.updateFieldsVals = vals
 	return fr.updateFieldsError
 }
 
-func (fr *fakeRepository) Delete(m *fakeModel) error {
+func (fr *fakeRepository) DeleteContext(ctx context.Context, m *fakeModel) error {
 	fr.deleteCalled = true
 	return fr.deleteError
 }
 
-func (fr *fakeRepository) Undelete(m *fakeModel) error {
+func (fr *fakeRepository) UndeleteContext(ctx context.Context, m *fakeModel) error {
 	fr.undeleteCalled = true
 	return fr.deleteError
 }
 
-func (fr *fakeRepository) Detail(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) DetailContext(ctx context.Context, id interface{}, fields []string) (map[string]any, error) {
 	return fr.getResult, fr.getError
 }
 
-func (fr *fakeRepository) DeadDetail(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) DeadDetailContext(ctx context.Context, id interface{}, fields []string) (map[string]any, error) {
 	return fr.getDeletedResult, fr.getDeletedError
 }
 
-func (fr *fakeRepository) List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) ListContext(ctx context.Context, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listActiveResult, fr.listActiveError
 }
 
-func (fr *fakeRepository) DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) DeadListContext(ctx context.Context, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
 	return fr.listDeletedResult, fr.listDeletedError
 }
 
-func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (fr *fakeRepository) BulkContext(ctx context.Context, ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
 	return fr.bulkGetResult, fr.bulkGetError
 }
 
-func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+func (fr *fakeRepository) ListOneContext(ctx context.Context, orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
 	return fr.listOneResult, fr.listOneError
 }
 
-func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string]any, error) {
+func (fr *fakeRepository) RawContext(ctx context.Context, query string, params map[string]any) ([]map[string]any, error) {
 	return fr.rawResult, fr.rawError
 }
 
-func (fr *fakeRepository) BulkAdd(m []*fakeModel) error {
+func (fr *fakeRepository) BulkAddContext(ctx context.Context, m []*fakeModel) error {
 	return fr.bulkAddError
+}
+
+func (fr *fakeRepository) Add(m *fakeModel) error {
+	return fr.AddContext(context.Background(), m)
+}
+
+func (fr *fakeRepository) Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+	return fr.EditContext(context.Background(), table, pk, pkVal, cols, vals)
+}
+
+func (fr *fakeRepository) Delete(m *fakeModel) error {
+	return fr.DeleteContext(context.Background(), m)
+}
+
+func (fr *fakeRepository) Undelete(m *fakeModel) error {
+	return fr.UndeleteContext(context.Background(), m)
+}
+
+func (fr *fakeRepository) Detail(id interface{}, fields []string) (map[string]any, error) {
+	return fr.DetailContext(context.Background(), id, fields)
+}
+
+func (fr *fakeRepository) DeadDetail(id interface{}, fields []string) (map[string]any, error) {
+	return fr.DeadDetailContext(context.Background(), id, fields)
+}
+
+func (fr *fakeRepository) List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	return fr.ListContext(context.Background(), limit, pageCursor, orderBy, order, fields, filters)
+}
+
+func (fr *fakeRepository) DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	return fr.DeadListContext(context.Background(), limit, pageCursor, orderBy, order, fields, filters)
+}
+
+func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+	return fr.BulkContext(context.Background(), ids, limit, pageCursor, orderBy, order, fields)
+}
+
+func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+	return fr.ListOneContext(context.Background(), orderBy, order, fields, filters)
+}
+
+func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string]any, error) {
+	return fr.RawContext(context.Background(), query, params)
+}
+
+func (fr *fakeRepository) BulkAdd(m []*fakeModel) error {
+	return fr.BulkAddContext(context.Background(), m)
 }
 
 func TestNewBaseController(t *testing.T) {
