@@ -112,7 +112,7 @@ func parseExtraFields(
 			strings.HasPrefix(upperLine, "PRIMARY") ||
 			strings.HasPrefix(upperLine, "KEY") ||
 			strings.HasPrefix(upperLine, "UNIQUE") ||
-			strings.HasPrefix(upperLine, "COMMENT ") ||
+			strings.HasPrefix(upperLine, "COMMENT") ||
 			strings.HasPrefix(upperLine, "CREATE TABLE") {
 			continue
 		}
