@@ -399,7 +399,7 @@ func TestList_WithCursor(t *testing.T) {
 
 	query := regexp.QuoteMeta(
 		"SELECT `id`, `name`, `age` FROM `example` " +
-			"WHERE `deleted_at` IS NULL AND ( `id` < ? OR ( `id` = ? AND `id` < ? ) ) " +
+			"WHERE `deleted_at` IS NULL AND (`id` < ? OR (`id` = ? AND `id` < ?)) " +
 			"ORDER BY `id` DESC LIMIT ?",
 	)
 
@@ -485,6 +485,74 @@ func TestBulk_WithCursorDesc(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Bob", list[0]["name"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestList_WithNullCursorAscending(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	cursor := &helper.PageCursor{LastID: "2", LastValueNull: true}
+
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL "+
+			"AND ((`age` IS NULL AND `id` > ?) OR `age` IS NOT NULL) "+
+			"ORDER BY `age` ASC, `id` ASC LIMIT ?",
+	)).WithArgs("2", 10).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("3", "Zero", 0),
+	)
+
+	list, err := repo.List(10, cursor, "age", "ASC", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestList_WithNonNullCursorDescendingIncludesNullPartition(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	cursor := &helper.PageCursor{LastID: "3", LastValue: "0"}
+
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL "+
+			"AND ((`age` < ? OR (`age` = ? AND `id` < ?)) OR `age` IS NULL) "+
+			"ORDER BY `age` DESC, `id` DESC LIMIT ?",
+	)).WithArgs("0", "0", "3", 10).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("2", "Null", nil),
+	)
+
+	list, err := repo.List(10, cursor, "age", "DESC", []string{"id", "name", "age"}, nil)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Nil(t, list[0]["age"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBulk_WithNullCursorDescending(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	cursor := &helper.PageCursor{LastID: "2", LastValueNull: true}
+	ids := []string{"1", "2"}
+
+	mock.ExpectQuery(regexp.QuoteMeta(
+		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL "+
+			"AND (`age` IS NULL AND `id` < ?) AND `id` IN (?, ?) "+
+			"ORDER BY `age` DESC, `id` DESC LIMIT ?",
+	)).WithArgs("2", "1", "2", 5).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "name", "age"}),
+	)
+
+	list, err := repo.Bulk(ids, 5, cursor, "age", "DESC", []string{"id", "name", "age"})
+	require.NoError(t, err)
+	require.Empty(t, list)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

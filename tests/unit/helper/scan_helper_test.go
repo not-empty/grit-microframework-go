@@ -242,7 +242,7 @@ func TestGenericScanToMap_NullInt64Invalid(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Contains(t, result, "age")
-	require.Equal(t, 0, result["age"])
+	require.Nil(t, result["age"])
 }
 
 func TestGenericScanToMap_NullTimeInvalid(t *testing.T) {

@@ -114,7 +114,7 @@ func GenericScanToMap(
 			if v.Valid {
 				result[col] = int(v.Int64)
 			} else {
-				result[col] = 0
+				result[col] = nil
 			}
 		case *sql.NullTime:
 			if v.Valid {

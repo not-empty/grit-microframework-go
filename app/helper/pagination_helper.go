@@ -13,8 +13,9 @@ import (
 const DefaultPageLimit = 25
 
 type PageCursor struct {
-	LastID    string `json:"last_id"`
-	LastValue string `json:"last_value"`
+	LastID        string `json:"last_id"`
+	LastValue     string `json:"last_value"`
+	LastValueNull bool   `json:"last_value_null,omitempty"`
 }
 
 func EncodeCursor(c PageCursor) string {
@@ -79,13 +80,19 @@ func BuildPageCursor(body []byte, query url.Values) (string, error) {
 
 	idVal, _ := last["id"].(string)
 	var lastVal string
+	var lastValNull bool
 	if v, ok := last[orderBy]; ok {
-		lastVal = fmt.Sprintf("%v", v)
+		if v == nil {
+			lastValNull = true
+		} else {
+			lastVal = fmt.Sprintf("%v", v)
+		}
 	}
 
 	return EncodeCursor(PageCursor{
-		LastID:    idVal,
-		LastValue: lastVal,
+		LastID:        idVal,
+		LastValue:     lastVal,
+		LastValueNull: lastValNull,
 	}), nil
 }
 
