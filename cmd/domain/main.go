@@ -195,9 +195,6 @@ func parseExtraFields(
 			defaultCols = append(defaultCols, fmt.Sprintf("\"%s\"", colName))
 		}
 
-		// A nullable integer needs a pointer even when MySQL supplies its
-		// implicit NULL default. Defaulted integers also need a pointer so an
-		// omitted value remains distinguishable from an explicit zero.
 		if goType == "int" && (!isRequired || hasDefault) {
 			goType = "*" + goType
 		}
