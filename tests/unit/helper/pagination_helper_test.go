@@ -14,13 +14,14 @@ import (
 )
 
 func TestEncodeDecodeCursor_Roundtrip(t *testing.T) {
-	orig := helper.PageCursor{LastID: "abc123", LastValue: "xyz789"}
+	orig := helper.PageCursor{LastID: "abc123", LastValue: "xyz789", LastValueNull: true}
 	token := helper.EncodeCursor(orig)
 
 	decoded, err := helper.DecodeCursor(token)
 	require.NoError(t, err)
 	require.Equal(t, orig.LastID, decoded.LastID)
 	require.Equal(t, orig.LastValue, decoded.LastValue)
+	require.Equal(t, orig.LastValueNull, decoded.LastValueNull)
 }
 
 func TestDecodeCursor_InvalidEncoding(t *testing.T) {
@@ -146,6 +147,22 @@ func TestBuildPageCursor_FullPage_CustomOrderBy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "id25", pc.LastID)
 	require.Equal(t, "175", pc.LastValue)
+	require.False(t, pc.LastValueNull)
+}
+
+func TestBuildPageCursor_NullOrderValue(t *testing.T) {
+	body := []byte(`[{"id":"id1","score":null}]`)
+	query := url.Values{"limit": []string{"1"}, "order_by": []string{"score"}}
+
+	cursor, err := helper.BuildPageCursor(body, query)
+	require.NoError(t, err)
+	require.NotEmpty(t, cursor)
+
+	pc, err := helper.DecodeCursor(cursor)
+	require.NoError(t, err)
+	require.Equal(t, "id1", pc.LastID)
+	require.Empty(t, pc.LastValue)
+	require.True(t, pc.LastValueNull)
 }
 
 func TestParseLimit_CustomWithinBounds(t *testing.T) {

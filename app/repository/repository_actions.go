@@ -54,17 +54,12 @@ func bulkRecords(
 	order = helper.ValidateOrder(order)
 
 	where := []string{"`deleted_at` IS NULL"}
+	args := []interface{}{}
 
 	if pageCursor != nil {
-		op := ">"
-		if order == "DESC" {
-			op = "<"
-		}
-		where = append(where, fmt.Sprintf(
-			"(%s %s ? OR (%s = ? AND `%s` %s ?))",
-			orderByEsc, op,
-			orderByEsc, pk, op,
-		))
+		condition, cursorArgs := buildCursorCondition(orderByEsc, pk, order, pageCursor)
+		where = append(where, condition)
+		args = append(args, cursorArgs...)
 	}
 
 	placeholders := make([]string, len(ids))
@@ -75,14 +70,6 @@ func bulkRecords(
 		fmt.Sprintf("`%s` IN (%s)", pk, strings.Join(placeholders, ", ")),
 	)
 
-	args := []interface{}{}
-	if pageCursor != nil {
-		args = append(args,
-			pageCursor.LastValue,
-			pageCursor.LastValue,
-			pageCursor.LastID,
-		)
-	}
 	for _, id := range ids {
 		args = append(args, id)
 	}
@@ -237,21 +224,9 @@ func listRecords(
 	}
 
 	if pageCursor != nil {
-		op := ">"
-		if order == "DESC" {
-			op = "<"
-		}
-		whereClause += fmt.Sprintf(
-			" AND ( %s %s ? OR ( %s = ? AND `id` %s ? ) )",
-			orderByEsc, op,
-			orderByEsc,
-			op,
-		)
-		args = append(args,
-			pageCursor.LastValue,
-			pageCursor.LastValue,
-			pageCursor.LastID,
-		)
+		condition, cursorArgs := buildCursorCondition(orderByEsc, "id", order, pageCursor)
+		whereClause += " AND " + condition
+		args = append(args, cursorArgs...)
 	}
 	orderExpr := fmt.Sprintf("%s %s", orderByEsc, order)
 	if orderByEsc != "`id`" {
@@ -282,6 +257,36 @@ func listRecords(
 		list = append(list, row)
 	}
 	return list, nil
+}
+
+func buildCursorCondition(orderByEsc, pk, order string, cursor *helper.PageCursor) (string, []interface{}) {
+	op := ">"
+	if order == "DESC" {
+		op = "<"
+	}
+	pkEsc := helper.EscapeMysqlField(pk)
+
+	if cursor.LastValueNull {
+		if order == "DESC" {
+			return fmt.Sprintf("(%s IS NULL AND %s %s ?)", orderByEsc, pkEsc, op), []interface{}{cursor.LastID}
+		}
+		return fmt.Sprintf(
+			"((%s IS NULL AND %s %s ?) OR %s IS NOT NULL)",
+			orderByEsc, pkEsc, op, orderByEsc,
+		), []interface{}{cursor.LastID}
+	}
+
+	condition := fmt.Sprintf(
+		"(%s %s ? OR (%s = ? AND %s %s ?))",
+		orderByEsc, op, orderByEsc, pkEsc, op,
+	)
+	args := []interface{}{cursor.LastValue, cursor.LastValue, cursor.LastID}
+
+	if order == "DESC" && orderByEsc != pkEsc {
+		condition = fmt.Sprintf("(%s OR %s IS NULL)", condition, orderByEsc)
+	}
+
+	return condition, args
 }
 
 func rawRecords(db *sql.DB, _ map[string]string, sqlText string, args ...interface{}) ([]map[string]any, error) {

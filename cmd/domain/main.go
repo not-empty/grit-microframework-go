@@ -25,6 +25,36 @@ type DomainData struct {
 	DefaultCols string
 }
 
+func writeGeneratedFile(path string, tmpl *template.Template, data DomainData, overwrite bool) (bool, error) {
+	flags := os.O_WRONLY | os.O_CREATE
+	if overwrite {
+		flags |= os.O_TRUNC
+	} else {
+		flags |= os.O_EXCL
+	}
+
+	file, err := os.OpenFile(path, flags, 0o666)
+	if err != nil {
+		if !overwrite && os.IsExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if err := tmpl.Execute(file, data); err != nil {
+		_ = file.Close()
+		if !overwrite {
+			_ = os.Remove(path)
+		}
+		return false, err
+	}
+	if err := file.Close(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func Capitalize(s string) string {
 	if s == "" {
 		return s
@@ -82,6 +112,7 @@ func parseExtraFields(
 			strings.HasPrefix(upperLine, "PRIMARY") ||
 			strings.HasPrefix(upperLine, "KEY") ||
 			strings.HasPrefix(upperLine, "UNIQUE") ||
+			strings.HasPrefix(upperLine, "COMMENT") ||
 			strings.HasPrefix(upperLine, "CREATE TABLE") {
 			continue
 		}
@@ -122,6 +153,7 @@ func parseExtraFields(
 		}
 
 		isRequired := strings.Contains(upperLine, "NOT NULL")
+		hasDefault := strings.Contains(upperLine, "DEFAULT")
 
 		var customRules string
 		if idx := strings.Index(raw, "-- validate:"); idx != -1 {
@@ -159,12 +191,12 @@ func parseExtraFields(
 			hasSanitize = true
 		}
 
-		if strings.Contains(upperLine, "DEFAULT") {
+		if hasDefault {
 			defaultCols = append(defaultCols, fmt.Sprintf("\"%s\"", colName))
+		}
 
-			if goType == "int" {
-				goType = "*" + goType
-			}
+		if goType == "int" && (!isRequired || hasDefault) {
+			goType = "*" + goType
 		}
 
 		fieldLines = append(fieldLines, fmt.Sprintf("%s %s %s", fieldName, goType, tag))
@@ -255,43 +287,44 @@ func main() {
 	routesOutPath := filepath.Join("../..", "app", "router", "domains", domainLower+"_domain.go")
 	rawOutPath := filepath.Join("../..", "app", "repository", "models", domainLower+"_raw.go")
 
-	modelFile, err := os.Create(modelOutPath)
+	modelWritten, err := writeGeneratedFile(modelOutPath, modelTmpl, data, true)
 	if err != nil {
-		log.Fatalf("Error creating model output file: %v", err)
+		log.Fatalf("Error generating model output file: %v", err)
 	}
-	defer modelFile.Close()
-
-	routesFile, err := os.Create(routesOutPath)
+	routesWritten, err := writeGeneratedFile(routesOutPath, routesTmpl, data, false)
 	if err != nil {
-		log.Fatalf("Error creating routes output file: %v", err)
+		log.Fatalf("Error generating domain output file: %v", err)
 	}
-	defer routesFile.Close()
-
-	rawFile, err := os.Create(rawOutPath)
+	rawWritten, err := writeGeneratedFile(rawOutPath, rawTmpl, data, false)
 	if err != nil {
-		log.Fatalf("Error creating raw output file: %v", err)
-	}
-	defer rawFile.Close()
-
-	if err := modelTmpl.Execute(modelFile, data); err != nil {
-		log.Fatalf("Error executing model template: %v", err)
-	}
-	if err := routesTmpl.Execute(routesFile, data); err != nil {
-		log.Fatalf("Error executing domain template: %v", err)
-	}
-	if err := rawTmpl.Execute(rawFile, data); err != nil {
-		log.Fatalf("Error executing raw template: %v", err)
+		log.Fatalf("Error generating raw output file: %v", err)
 	}
 
-	if err := os.Chown(modelOutPath, 1000, 1000); err != nil {
-		log.Fatalf("Error changing file ownership for model: %v", err)
+	if modelWritten {
+		if err := os.Chown(modelOutPath, 1000, 1000); err != nil {
+			log.Fatalf("Error changing file ownership for model: %v", err)
+		}
 	}
-	if err := os.Chown(routesOutPath, 1000, 1000); err != nil {
-		log.Fatalf("Error changing file ownership for routes: %v", err)
+	if routesWritten {
+		if err := os.Chown(routesOutPath, 1000, 1000); err != nil {
+			log.Fatalf("Error changing file ownership for routes: %v", err)
+		}
 	}
-	if err := os.Chown(rawOutPath, 1000, 1000); err != nil {
-		log.Fatalf("Error changing file ownership for raw: %v", err)
+	if rawWritten {
+		if err := os.Chown(rawOutPath, 1000, 1000); err != nil {
+			log.Fatalf("Error changing file ownership for raw: %v", err)
+		}
 	}
 
-	fmt.Printf("Generated domain files:\n - %s\n - %s\n - %s\n", modelOutPath, routesOutPath, rawOutPath)
+	fmt.Printf("Generated model file:\n - %s\n", modelOutPath)
+	if routesWritten {
+		fmt.Printf("Generated domain file:\n - %s\n", routesOutPath)
+	} else {
+		fmt.Printf("Preserved existing domain file:\n - %s\n", routesOutPath)
+	}
+	if rawWritten {
+		fmt.Printf("Generated raw file:\n - %s\n", rawOutPath)
+	} else {
+		fmt.Printf("Preserved existing raw file:\n - %s\n", rawOutPath)
+	}
 }
