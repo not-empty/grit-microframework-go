@@ -86,9 +86,9 @@ func TestParseExtraFieldsIntegerNullabilityAndDefaults(t *testing.T) {
 			schema:      "\"score\": \"int\"",
 		},
 		{
-			name:        "required integer with default",
+			name:        "not null integer with default uses database default",
 			declaration: "score INT NOT NULL DEFAULT 0",
-			field:       "Score *int `json:\"score\" validate:\"required\"`",
+			field:       "Score *int `json:\"score\"`",
 			schema:      "\"score\": \"int\"",
 			defaulted:   true,
 		},
@@ -130,4 +130,37 @@ func TestParseExtraFieldsSkipsMultilineColumnComment(t *testing.T) {
 	require.Equal(t, "m.SourceLineKey, m.PageNumber", values)
 	require.NotContains(t, schema, `"COMMENT"`)
 	require.Equal(t, `"page_number"`, defaults)
+}
+
+func TestParseExtraFieldsKeepsColumnsBeginningWithPrimary(t *testing.T) {
+	ddl := `CREATE TABLE project_draw_document_result (
+		id varchar(26) NOT NULL,
+		primary_amount bigint DEFAULT NULL,
+		primary_amount_field varchar(128) DEFAULT NULL,
+		PRIMARY KEY (id)
+	)`
+
+	fields, columns, values, _, schema, defaults, _, _ := parseExtraFields(ddl)
+
+	require.Contains(t, fields, `PrimaryAmount *int`)
+	require.Contains(t, fields, `PrimaryAmountField string`)
+	require.Equal(t, `"primary_amount", "primary_amount_field"`, columns)
+	require.Equal(t, "m.PrimaryAmount, m.PrimaryAmountField", values)
+	require.Contains(t, schema, `"primary_amount": "int"`)
+	require.NotContains(t, schema, `"PRIMARY"`)
+	require.Equal(t, `"primary_amount", "primary_amount_field"`, defaults)
+}
+
+func TestParseExtraFieldsNotNullStringWithDefaultUsesDatabaseDefault(t *testing.T) {
+	ddl := `CREATE TABLE document (
+		id varchar(26) NOT NULL,
+		visibility_status varchar(32) NOT NULL DEFAULT 'visible',
+		PRIMARY KEY (id)
+	)`
+
+	fields, _, _, _, _, defaults, _, _ := parseExtraFields(ddl)
+
+	require.Contains(t, fields, `VisibilityStatus string `+"`json:\"visibility_status\"`")
+	require.NotContains(t, fields, `validate:\"required\"`)
+	require.Equal(t, `"visibility_status"`, defaults)
 }

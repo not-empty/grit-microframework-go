@@ -276,6 +276,25 @@ Generated files:
 
 > Generated code for new domains are test free since they are abstract of the basic implementations.
 
+### DDL interpretation
+
+The domain generator derives automatic request validation from the column's nullability and default:
+
+- `NOT NULL` without a `DEFAULT` generates `validate:"required"`.
+- `NOT NULL DEFAULT ...` does not generate `validate:"required"`, so the field may be omitted from a request and MySQL can apply its default.
+- An explicit `-- validate: "..."` comment is still included exactly as written, including an explicitly requested `required` rule.
+
+For example:
+
+```sql
+name VARCHAR(255) NOT NULL,
+visibility_status VARCHAR(32) NOT NULL DEFAULT 'visible'
+```
+
+Here, `name` is required in the API payload, while `visibility_status` is optional and defaults to `visible` when omitted.
+
+DDL constraints are recognized by their complete prefixes, such as `PRIMARY KEY`, `FOREIGN KEY`, `UNIQUE`, `KEY`, and `CONSTRAINT`. Column names beginning with those words remain normal fields. For example, `primary_amount` and `primary_amount_field` are generated as model fields and are not mistaken for a `PRIMARY KEY` declaration.
+
 - **Generate Route**:
   ```bash
   cd cmd/route

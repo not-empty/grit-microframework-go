@@ -109,9 +109,11 @@ func parseExtraFields(
 
 		if line == "" ||
 			strings.HasPrefix(line, ")") ||
-			strings.HasPrefix(upperLine, "PRIMARY") ||
-			strings.HasPrefix(upperLine, "KEY") ||
-			strings.HasPrefix(upperLine, "UNIQUE") ||
+			strings.HasPrefix(upperLine, "PRIMARY KEY") ||
+			strings.HasPrefix(upperLine, "KEY ") ||
+			strings.HasPrefix(upperLine, "UNIQUE ") ||
+			strings.HasPrefix(upperLine, "CONSTRAINT ") ||
+			strings.HasPrefix(upperLine, "FOREIGN KEY") ||
 			strings.HasPrefix(upperLine, "COMMENT") ||
 			strings.HasPrefix(upperLine, "CREATE TABLE") {
 			continue
@@ -169,7 +171,7 @@ func parseExtraFields(
 		}
 
 		var rules []string
-		if isRequired {
+		if isRequired && !hasDefault {
 			rules = append(rules, "required")
 		}
 		if customRules != "" {
