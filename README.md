@@ -387,3 +387,10 @@ See `./tests/coverage/coverage-unit.html` for details.
 For more request examples, see `./ops/curl.sh`. Suggestions and contributions welcome!
 
 If you are using a REST API software like Insomnia or Postman you can import the `./ops/rest_environment.json` and `./ops/rest_collection.json` files.
+
+## OpenTelemetry Compatibility
+
+GRIT is compatible with OpenTelemetry instrumentation. HTTP request contexts
+are propagated through repository operations to `database/sql`, including raw
+queries. See [`docker-compose.otel.yml`](./docker-compose.otel.yml) for a
+reference configuration.

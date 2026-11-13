@@ -1,0 +1,79 @@
+services:
+  grit:
+    command:
+      - sh
+      - -c
+      - go build -buildvcs=false -o /otel-bin/grit . && exec /otel-bin/grit
+    environment:
+      APP_ENV: local
+      APP_LOG: "true"
+      APP_NO_AUTH: "true"
+      APP_PORT: "8001"
+      DB_DRIVER: mysql
+      DB_HOST: grit-mysql
+      DB_MAX_CONN: "100"
+      DB_MAX_IDLE: "10"
+      DB_NAME: grit
+      DB_PASS: password
+      DB_PORT: "3306"
+      DB_USER: user
+    volumes:
+      - grit-otel-bin:/otel-bin
+    depends_on:
+      grit-mysql:
+        condition: service_healthy
+
+  grit-mysql:
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uuser", "-ppassword"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ./cmd/sql/example.sql:/docker-entrypoint-initdb.d/001-example.sql:ro
+
+  otel-go-auto:
+    image: otel/autoinstrumentation-go:v0.24.0
+    container_name: grit-otel-go-auto
+    privileged: true
+    pid: host
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_GO_AUTO_INCLUDE_DB_STATEMENT: "true"
+      OTEL_GO_AUTO_TARGET_EXE: /otel-bin/grit
+      OTEL_LOG_LEVEL: info
+      OTEL_PROPAGATORS: tracecontext,baggage
+      OTEL_SERVICE_NAME: grit
+    volumes:
+      - grit-otel-bin:/otel-bin:ro
+      - /proc:/host/proc
+    depends_on:
+      grit:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.165.0
+    container_name: grit-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    volumes:
+      - ./ops/otel-collector.yml:/etc/otelcol-contrib/config.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      jaeger:
+        condition: service_started
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: grit-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+
+volumes:
+  grit-otel-bin:

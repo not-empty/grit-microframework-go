@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -63,6 +64,9 @@ func (m *fakeModel) Schema() map[string]string {
 }
 
 type fakeRepository struct {
+	lastContext   context.Context
+	lastOperation string
+
 	insertedModel *fakeModel
 	insertedError error
 
@@ -101,61 +105,78 @@ type fakeRepository struct {
 	bulkAddError error
 }
 
+func (fr *fakeRepository) recordContext(ctx context.Context, operation string) {
+	fr.lastContext = ctx
+	fr.lastOperation = operation
+}
+
 func (fr *fakeRepository) New() *fakeModel {
 	return &fakeModel{}
 }
 
-func (fr *fakeRepository) Add(m *fakeModel) error {
+func (fr *fakeRepository) Add(ctx context.Context, m *fakeModel) error {
+	fr.recordContext(ctx, "Add")
 	fr.insertedModel = m
 	return fr.insertedError
 }
 
-func (fr *fakeRepository) Edit(table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+func (fr *fakeRepository) Edit(ctx context.Context, table, pk string, pkVal interface{}, cols []string, vals []interface{}) error {
+	fr.recordContext(ctx, "Edit")
 	fr.updateFieldsCalled = true
 	fr.updateFieldsCols = cols
 	fr.updateFieldsVals = vals
 	return fr.updateFieldsError
 }
 
-func (fr *fakeRepository) Delete(m *fakeModel) error {
+func (fr *fakeRepository) Delete(ctx context.Context, m *fakeModel) error {
+	fr.recordContext(ctx, "Delete")
 	fr.deleteCalled = true
 	return fr.deleteError
 }
 
-func (fr *fakeRepository) Undelete(m *fakeModel) error {
+func (fr *fakeRepository) Undelete(ctx context.Context, m *fakeModel) error {
+	fr.recordContext(ctx, "Undelete")
 	fr.undeleteCalled = true
 	return fr.deleteError
 }
 
-func (fr *fakeRepository) Detail(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) Detail(ctx context.Context, id interface{}, fields []string) (map[string]any, error) {
+	fr.recordContext(ctx, "Detail")
 	return fr.getResult, fr.getError
 }
 
-func (fr *fakeRepository) DeadDetail(id interface{}, fields []string) (map[string]any, error) {
+func (fr *fakeRepository) DeadDetail(ctx context.Context, id interface{}, fields []string) (map[string]any, error) {
+	fr.recordContext(ctx, "DeadDetail")
 	return fr.getDeletedResult, fr.getDeletedError
 }
 
-func (fr *fakeRepository) List(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) List(ctx context.Context, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	fr.recordContext(ctx, "List")
 	return fr.listActiveResult, fr.listActiveError
 }
 
-func (fr *fakeRepository) DeadList(limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+func (fr *fakeRepository) DeadList(ctx context.Context, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string, filters []helper.Filter) ([]map[string]any, error) {
+	fr.recordContext(ctx, "DeadList")
 	return fr.listDeletedResult, fr.listDeletedError
 }
 
-func (fr *fakeRepository) Bulk(ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+func (fr *fakeRepository) Bulk(ctx context.Context, ids []string, limit int, pageCursor *helper.PageCursor, orderBy, order string, fields []string) ([]map[string]any, error) {
+	fr.recordContext(ctx, "Bulk")
 	return fr.bulkGetResult, fr.bulkGetError
 }
 
-func (fr *fakeRepository) ListOne(orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+func (fr *fakeRepository) ListOne(ctx context.Context, orderBy, order string, fields []string, filters []helper.Filter) (map[string]any, error) {
+	fr.recordContext(ctx, "ListOne")
 	return fr.listOneResult, fr.listOneError
 }
 
-func (fr *fakeRepository) Raw(query string, params map[string]any) ([]map[string]any, error) {
+func (fr *fakeRepository) Raw(ctx context.Context, query string, params map[string]any) ([]map[string]any, error) {
+	fr.recordContext(ctx, "Raw")
 	return fr.rawResult, fr.rawError
 }
 
-func (fr *fakeRepository) BulkAdd(m []*fakeModel) error {
+func (fr *fakeRepository) BulkAdd(ctx context.Context, m []*fakeModel) error {
+	fr.recordContext(ctx, "BulkAdd")
 	return fr.bulkAddError
 }
 

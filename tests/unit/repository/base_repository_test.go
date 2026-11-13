@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -32,7 +33,7 @@ func TestAdd(t *testing.T) {
 		WithArgs(example.ID, example.Name, example.Age, nil, nil, nil).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.Add(example)
+	err = repo.Add(context.Background(), example)
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -48,7 +49,7 @@ func TestEdit(t *testing.T) {
 		WithArgs("Jane", "1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.Edit("`example`", "id", "1", []string{"name"}, []interface{}{"Jane"})
+	err = repo.Edit(context.Background(), "`example`", "id", "1", []string{"name"}, []interface{}{"Jane"})
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -64,7 +65,7 @@ func TestDelete(t *testing.T) {
 		WithArgs("1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.Delete(&models.Example{ID: "1"})
+	err = repo.Delete(context.Background(), &models.Example{ID: "1"})
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -80,7 +81,7 @@ func TestUndelete(t *testing.T) {
 		WithArgs("1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = repo.Undelete(&models.Example{ID: "1"})
+	err = repo.Undelete(context.Background(), &models.Example{ID: "1"})
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -97,7 +98,7 @@ func TestDetail(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(rows)
 
-	result, err := repo.Detail("1", []string{"id", "name", "age"})
+	result, err := repo.Detail(context.Background(), "1", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Equal(t, "John", result["name"])
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -115,7 +116,7 @@ func TestDeadDetail(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(rows)
 
-	result, err := repo.DeadDetail("1", []string{"id", "name", "age"})
+	result, err := repo.DeadDetail(context.Background(), "1", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Equal(t, "John", result["name"])
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -128,7 +129,7 @@ func TestEditEmptyColumns(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	err = repo.Edit("example", "id", "1", []string{}, []interface{}{})
+	err = repo.Edit(context.Background(), "example", "id", "1", []string{}, []interface{}{})
 	require.NoError(t, err)
 }
 
@@ -143,7 +144,7 @@ func TestDetail_Error(t *testing.T) {
 		WithArgs("non-existent").
 		WillReturnError(sql.ErrConnDone)
 
-	_, err = repo.Detail("non-existent", []string{"id", "name", "age"})
+	_, err = repo.Detail(context.Background(), "non-existent", []string{"id", "name", "age"})
 	require.Error(t, err)
 	require.Equal(t, sql.ErrConnDone, err)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -160,7 +161,7 @@ func TestDetaill_NoRows(t *testing.T) {
 		WithArgs("not-found").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "age"}))
 
-	result, err := repo.Detail("not-found", []string{"id", "name", "age"})
+	result, err := repo.Detail(context.Background(), "not-found", []string{"id", "name", "age"})
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.Nil(t, result)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -180,7 +181,7 @@ func TestList(t *testing.T) {
 		WithArgs(10).
 		WillReturnRows(rows)
 
-	result, err := repo.List(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.List(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -201,7 +202,7 @@ func TestDeadList(t *testing.T) {
 		WithArgs(10).
 		WillReturnRows(rows)
 
-	result, err := repo.DeadList(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.DeadList(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -223,7 +224,7 @@ func TestListWithFilters(t *testing.T) {
 		WillReturnRows(rows)
 
 	filters := []helper.Filter{{Field: "name", Operator: "eql", Value: "John"}}
-	result, err := repo.List(10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
+	result, err := repo.List(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -245,7 +246,7 @@ func TestDeadListWithFilters(t *testing.T) {
 		WillReturnRows(rows)
 
 	filters := []helper.Filter{{Field: "name", Operator: "eql", Value: "John"}}
-	result, err := repo.DeadList(10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
+	result, err := repo.DeadList(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, filters)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -265,7 +266,7 @@ func TestList_QueryError(t *testing.T) {
 		WithArgs(10).
 		WillReturnError(sql.ErrConnDone)
 
-	result, err := repo.List(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.List(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Equal(t, sql.ErrConnDone, err)
@@ -294,7 +295,7 @@ func TestList_ScanError(t *testing.T) {
 		WithArgs(10).
 		WillReturnRows(rows)
 
-	result, err := repo.List(10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
+	result, err := repo.List(context.Background(), 10, nil, "id", "asc", []string{"id", "name", "age"}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "scan error")
 	require.Nil(t, result)
@@ -315,7 +316,7 @@ func TestBulk(t *testing.T) {
 		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk(context.Background(), []string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -329,7 +330,7 @@ func TestBulk_EmptyIDs(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	result, err := repo.Bulk([]string{}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk(context.Background(), []string{}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Nil(t, result)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -349,7 +350,7 @@ func TestBulk_QueryError(t *testing.T) {
 		WithArgs("1", "2", 10).
 		WillReturnError(expectedErr)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk(context.Background(), []string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.Error(t, err)
 	require.Equal(t, expectedErr, err)
 	require.Nil(t, result)
@@ -379,7 +380,7 @@ func TestBulk_ScanError(t *testing.T) {
 
 	repo := newTestRepo(db)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
+	result, err := repo.Bulk(context.Background(), []string{"1", "2"}, 10, nil, "id", "asc", []string{"id", "name", "age"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "scan error")
 	require.Nil(t, result)
@@ -409,7 +410,7 @@ func TestList_WithCursor(t *testing.T) {
 			AddRow("3", "Alice", 25),
 		)
 
-	list, err := repo.List(10, cursor, "id", "desc", []string{"id", "name", "age"}, nil)
+	list, err := repo.List(context.Background(), 10, cursor, "id", "desc", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Alice", list[0]["name"])
@@ -445,7 +446,7 @@ func TestBulk_WithCursor(t *testing.T) {
 			AddRow("2", "Bob", 28),
 		)
 
-	list, err := repo.Bulk(ids, 5, cursor, "id", "ASC", []string{"id", "name", "age"})
+	list, err := repo.Bulk(context.Background(), ids, 5, cursor, "id", "ASC", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Bob", list[0]["name"])
@@ -481,7 +482,7 @@ func TestBulk_WithCursorDesc(t *testing.T) {
 			AddRow("2", "Bob", 28),
 		)
 
-	list, err := repo.Bulk(ids, 5, cursor, "id", "DESC", []string{"id", "name", "age"})
+	list, err := repo.Bulk(context.Background(), ids, 5, cursor, "id", "DESC", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "Bob", list[0]["name"])
@@ -504,7 +505,7 @@ func TestList_WithNullCursorAscending(t *testing.T) {
 		sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("3", "Zero", 0),
 	)
 
-	list, err := repo.List(10, cursor, "age", "ASC", []string{"id", "name", "age"}, nil)
+	list, err := repo.List(context.Background(), 10, cursor, "age", "ASC", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -526,7 +527,7 @@ func TestList_WithNonNullCursorDescendingIncludesNullPartition(t *testing.T) {
 		sqlmock.NewRows([]string{"id", "name", "age"}).AddRow("2", "Null", nil),
 	)
 
-	list, err := repo.List(10, cursor, "age", "DESC", []string{"id", "name", "age"}, nil)
+	list, err := repo.List(context.Background(), 10, cursor, "age", "DESC", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Nil(t, list[0]["age"])
@@ -550,7 +551,7 @@ func TestBulk_WithNullCursorDescending(t *testing.T) {
 		sqlmock.NewRows([]string{"id", "name", "age"}),
 	)
 
-	list, err := repo.Bulk(ids, 5, cursor, "age", "DESC", []string{"id", "name", "age"})
+	list, err := repo.Bulk(context.Background(), ids, 5, cursor, "age", "DESC", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Empty(t, list)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -569,7 +570,7 @@ func TestListOne_Success(t *testing.T) {
 		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnRows(rows)
 
-	result, err := repo.ListOne("id", "ASC", fields, nil)
+	result, err := repo.ListOne(context.Background(), "id", "ASC", fields, nil)
 	require.NoError(t, err)
 	require.Equal(t, "John", result["name"])
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -587,7 +588,7 @@ func TestListOne_Empty(t *testing.T) {
 		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnRows(sqlmock.NewRows(fields))
 
-	result, err := repo.ListOne("id", "ASC", fields, nil)
+	result, err := repo.ListOne(context.Background(), "id", "ASC", fields, nil)
 	require.NoError(t, err)
 	require.Empty(t, result)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -606,7 +607,7 @@ func TestListOne_Error(t *testing.T) {
 		"SELECT `id`, `name`, `age` FROM `example` WHERE `deleted_at` IS NULL ORDER BY `id` ASC LIMIT ?",
 	)).WithArgs(1).WillReturnError(expErr)
 
-	result, err := repo.ListOne("id", "ASC", fields, nil)
+	result, err := repo.ListOne(context.Background(), "id", "ASC", fields, nil)
 	require.Error(t, err)
 	require.Equal(t, expErr, err)
 	require.Empty(t, result)
@@ -631,7 +632,7 @@ func TestRepository_Raw_Success(t *testing.T) {
 			AddRow("1", "Alice"),
 		)
 
-	results, err := repo.Raw(rawQuery, params)
+	results, err := repo.Raw(context.Background(), rawQuery, params)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "Alice", results[0]["name"])
@@ -655,11 +656,34 @@ func TestRepository_Raw_QueryError(t *testing.T) {
 		WithArgs(args[0]).
 		WillReturnError(fmt.Errorf("db exploded"))
 
-	results, err := repo.Raw(rawQuery, params)
+	results, err := repo.Raw(context.Background(), rawQuery, params)
 	require.Error(t, err)
 	require.Nil(t, results)
 	require.Contains(t, err.Error(), "db exploded")
 
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRepository_Raw_ContextDeadline(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := newTestRepo(db)
+	rawQuery := "SELECT id FROM `example`"
+	convertedSQL, _ := helper.PrepareRawQuery(rawQuery, nil)
+
+	mock.ExpectQuery(regexp.QuoteMeta(convertedSQL)).
+		WillDelayFor(100 * time.Millisecond).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("1"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	results, err := repo.Raw(ctx, rawQuery, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, ctx.Err(), context.DeadlineExceeded)
+	require.Nil(t, results)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -701,7 +725,7 @@ func TestBulkAdd_Success(t *testing.T) {
 		).
 		WillReturnResult(sqlmock.NewResult(1, 2))
 
-	err = repo.BulkAdd([]*models.Example{e1, e2})
+	err = repo.BulkAdd(context.Background(), []*models.Example{e1, e2})
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -724,7 +748,7 @@ func TestBulkAdd_Error(t *testing.T) {
 		WithArgs("x", "Y", 10, nil, nil, nil).
 		WillReturnError(fmt.Errorf("insert failed"))
 
-	err = repo.BulkAdd([]*models.Example{e})
+	err = repo.BulkAdd(context.Background(), []*models.Example{e})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insert failed")
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -737,7 +761,7 @@ func TestBulkAdd_EmptySlicePanics(t *testing.T) {
 
 	repo := newTestRepo(db)
 	require.Panics(t, func() {
-		_ = repo.BulkAdd([]*models.Example{})
+		_ = repo.BulkAdd(context.Background(), []*models.Example{})
 	})
 }
 
@@ -773,7 +797,7 @@ func TestList_OrderByNotID_AddsSecondaryID(t *testing.T) {
 		WithArgs(10).
 		WillReturnRows(rows)
 
-	result, err := repo.List(10, nil, "name", "DESC", []string{"id", "name", "age"}, nil)
+	result, err := repo.List(context.Background(), 10, nil, "name", "DESC", []string{"id", "name", "age"}, nil)
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
@@ -795,7 +819,7 @@ func TestBulk_OrderByNotID_AddsSecondaryID(t *testing.T) {
 		WithArgs("1", "2", 10).
 		WillReturnRows(rows)
 
-	result, err := repo.Bulk([]string{"1", "2"}, 10, nil, "name", "DESC", []string{"id", "name", "age"})
+	result, err := repo.Bulk(context.Background(), []string{"1", "2"}, 10, nil, "name", "DESC", []string{"id", "name", "age"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "John", result[0]["name"])
